@@ -5,42 +5,74 @@ param (
 )
 
 $SRC_DIR = "src"
-$PORT = "com3"
 
-
-function send-everything {
-    ampy --port $PORT put $SRC_DIR /
+function copy-settings {
+    Write-Output "Copying device.json to remote device"
+    mpremote fs cp device.json :device.json
 }
 
-function send-src {
-    Get-ChildItem -Path $SRC_DIR -File | ForEach-Object {
-        ampy --port $PORT put $($SRC_DIR + "/" + $_.Name)
+function copy-dependencies {
+    Write-Output "Copying dependencies to remote device"
+    $jsonContent = Get-Content -Path "lib/micropython-mqtt/package.json" -Raw
+    $jsonObject = $jsonContent | ConvertFrom-Json
+
+    $files = $jsonObject.urls
+    $files | ForEach-Object {
+        $_[1] = $_[1] -replace "github:peterhinch/", ""
+        $src = "lib/" + $_[1]
+        $dst = ":" + $_[0]
+        mpremote fs cp $src $dst
+    }
+}
+
+function copy-src {
+    Write-Output "Copying ./src/* to remote device"
+    Get-ChildItem -Path $SRC_DIR -Recurse | ForEach-Object {
+        $file = "src/" + $_.Name
+        $dst = ":" + $_.Name
+        mpremote fs cp $file $dst
     }
 }
 
 function reset {
-    ampy --port $PORT reset --hard
+    Write-Output "Resetting device"
+    mpremote reset
 }
 
 function clean {
-    ampy --port $PORT ls -r | ForEach-Object {
-        ampy --port $PORT rm $_
+    $counter = 0
+    Write-Output "Removing files from remote device"
+    mpremote fs ls | ForEach-Object {
+        $counter++
+        
+        if ($counter -eq 1) {
+            return
+        }
+        
+        $file = ":" + $_.Trim() -split '\s+' | Select-Object -Last 1
+        
+        if ($file -eq ":") {
+            return
+        }
+        mpremote.exe fs rm $file
     }
-    ampy --port $PORT rm lib/primitives
-    ampy --port $PORT rm lib
 }
 
 function run {
-    send-src
     reset
+    Start-Sleep -Seconds 1
+    copy-src
+    mpremote run src/main.py
 }
 
 function list {
-    ampy --port $PORT ls -r
+    mpremote fs ls
 }
 
 function build {
-    send-everything
+    copy-settings
+    copy-dependencies
+    copy-src
     reset
 }
 
@@ -49,7 +81,8 @@ function get {
         [Parameter(Mandatory=$true)]
         [string]$Filename
     )
-    ampy --port $PORT get $Filename
+    $src = ":" + $Filename
+    mpremote fs cp $src $Filename
 }
 
 function send {
@@ -57,12 +90,12 @@ function send {
         [Parameter(Mandatory=$true)]
         [string]$Filename
     )
-    ampy --port $PORT put $Filename
+    $dst = ":" + $Filename
+    mpremote fs cp $Filename $dst
 }
 
 switch ($Command) {
-    "send-everything" { send-everything } # upload everything to pico
-    "send-src" { send-src } # upload only src files to pico
+    "copy-src" { copy-src } # upload only src files to pico
     "reset" { reset } # reset pico
     "clean" { clean } # delete all files on pico
     "run" { run } # upload only src files and reset pico
