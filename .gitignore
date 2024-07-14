@@ -1,0 +1,9 @@
+*.pyc
+src/__pycache__
+src/lib
+*backups*
+*_autosave*
+state.json
+.vscode
+.picowgo
+ampy-get-file.py
