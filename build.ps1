@@ -23,11 +23,16 @@ function copy-dependencies {
         $dst = ":" + $_[0]
         mpremote fs cp $src $dst
     }
+    Copy-Item lib/micropython-async/v3/primitives/queue.py src/aio_queue.py
+    mpremote fs cp lib/micropython-async/v3/primitives/queue.py :aio_queue.py
 }
 
 function copy-src {
     Write-Output "Copying ./src/* to remote device"
     Get-ChildItem -Path $SRC_DIR -Recurse | ForEach-Object {
+        if ($_.Name -eq "queue.py") {
+            return
+        }
         $file = "src/" + $_.Name
         $dst = ":" + $_.Name
         mpremote fs cp $file $dst
@@ -60,7 +65,7 @@ function clean {
 
 function run {
     reset
-    Start-Sleep -Seconds 1
+    Start-Sleep -Seconds 2
     copy-src
     mpremote run src/main.py
 }

@@ -1,3 +1,7 @@
+# RGB Lamp
+
+With MQTT support
+
 # System requirements
 
 * micropython (RPI_PICO_W-20240602-v1.23.0)

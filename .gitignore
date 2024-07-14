@@ -1,5 +1,6 @@
 *.pyc
 src/__pycache__
+src/aio_queue.py
 *backups*
 *_autosave*
 device.json

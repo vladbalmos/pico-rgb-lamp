@@ -34,9 +34,17 @@ class LED:
         # Convert color to tuple(red, green, blue)
         # where each color channel is between 0, 255
         color_tuple = None
-        if isinstance(color, str):
-            if color in Colors:
-                color_tuple = Colors[color]
+        if isinstance(color, str) and color in Colors:
+            color_tuple = Colors[color]
+        
+        if not color_tuple and isinstance(color, str) and color.startswith("#"):
+            color = color[1:]
+            if len(color) == 6:
+                try:
+                    color_tuple = tuple(int(color[i:i+2], 16) for i in (0, 2, 4))
+                except ValueError:
+                    pass
+        
         if not color_tuple and isinstance(color, int):
             red = (color >> 16) & 0xFF
             green = (color >> 8) & 0xFF
