@@ -4,6 +4,13 @@
     "ssid": "wifi SSID",
     "password": "wifi password",
     "server": "ip or domain of MQTT server",
+    "led_pins": [
+        [1, 2, 0],
+        [4, 5, 3],
+        [7, 8, 6],
+        [10, 11, 9]
+    ],
+    "invert_pwm_duty_cycle": true,
     "features": [
         {
             "name": "Change global color",

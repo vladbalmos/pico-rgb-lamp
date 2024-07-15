@@ -1,18 +1,35 @@
+import time
 import json
 import asyncio
-from machine import Pin, PWM
+from machine import Pin
 from elastic_queue import Queue
 from led import LED, Colors
 from lamp import Lamp
+import device
 import mqtt
 
-LED_PINS = [
-    #r  g  b
-    [1, 2, 0],
-    [4, 5, 3],
-    [7, 8, 6],
-    [10, 11, 9],
-]
+TIMEOUT_MS = 16
+STATUS_LED_TOGGLE_INTERVAL_MS = 64
+
+def valid_state_update_request(msg):
+    if 'request' not in msg:
+        return False
+        
+    if msg['request'] != 'state-update':
+        return False
+
+    if 'payload' not in msg:
+        return False
+        
+    payload = msg['payload']
+    
+    if 'deviceId' not in payload or 'featureId' not in payload:
+        return False
+        
+    if payload['deviceId'] != device.id:
+        return False
+        
+    return device.has_feature(payload['featureId'])
 
 async def main():
     status_led = Pin('LED', Pin.OUT)
@@ -21,34 +38,46 @@ async def main():
     msg_queue = Queue(32)
     mqtt_state_queue = Queue(32)
 
-    for rgb_pins in LED_PINS:
-        led = LED(Pin(rgb_pins[0]), Pin(rgb_pins[1]), Pin(rgb_pins[2]))
-        LEDs.append(led)
-        
-    lamp = Lamp(LEDs)
-        
     with open("device.json", 'r') as device_config_file:
         contents = device_config_file.read()
         device_config = json.loads(contents)
+
+    for rgb_pins in device_config["led_pins"]:
+        led = LED(Pin(rgb_pins[0]), Pin(rgb_pins[1]), Pin(rgb_pins[2]), invert_duty_cycle = device_config["invert_pwm_duty_cycle"])
+        LEDs.append(led)
         
-    asyncio.create_task(mqtt.init(device_config, msg_queue, mqtt_state_queue))
+    lamp = Lamp(LEDs)
     
-    while True:
-        status_led.toggle()
+    state = device.init(lamp, device_config)
         
-        if not msg_queue.empty():
+    asyncio.create_task(mqtt.init(state, msg_queue, mqtt_state_queue))
+    
+    status_led_last_toggled_ms = time.ticks_ms()
+    while True:
+        now_ms = time.ticks_ms()
+        elapsed = time.ticks_diff(now_ms, status_led_last_toggled_ms)
+        
+        if elapsed >= STATUS_LED_TOGGLE_INTERVAL_MS:
+            status_led.toggle()
+            status_led_last_toggled_ms = now_ms
+        
+        while not msg_queue.empty():
             msg = msg_queue.get_nowait()
-            print("Got message", msg)
-            payload = msg["payload"]
-            if msg["request"] == "state-update":
-                lamp.change_state(payload["featureId"], payload["state"])
-                mqtt.broadcast(payload["featureId"], payload["state"])
+            
+            if not valid_state_update_request(msg):
+                continue
+
+            updates = device.update(msg["payload"])
+            for (feature_id, new_state) in updates:
+                if feature_id is None:
+                    continue
+                mqtt.broadcast(feature_id, new_state)
             
         while not mqtt_state_queue.empty():
             state = mqtt_state_queue.get_nowait()
             print("MQTT state", state)
         
-        await asyncio.sleep_ms(50)
+        await asyncio.sleep_ms(TIMEOUT_MS)
 
 if __name__ == '__main__':
     asyncio.run(main())

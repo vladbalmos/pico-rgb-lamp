@@ -1,6 +1,6 @@
 # RGB Lamp
 
-With MQTT support
+MQTT support
 
 # System requirements
 
@@ -11,10 +11,9 @@ With MQTT support
 
     git clone [url]
     git submodule update --init --recursive
-
+    
 # Building and flashing
-
-Copy `device.json.tpl` to `device.json` and configure your wifi & mqtt settings
+Copy `device.tpl.json` to `device.json` and configure your wifi & mqtt settings. 
 
 ## Linux
 

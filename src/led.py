@@ -24,11 +24,11 @@ Colors = {
 
 class LED:
     
-    def __init__(self, red_pin, blue_pin, green_pin) -> None:
+    def __init__(self, red_pin, blue_pin, green_pin, invert_duty_cycle = False) -> None:
         self._red_pin = PWM(red_pin, freq=PWM_FREQ, duty_u16=MAX_DUTY_CYCLE)
         self._green_pin = PWM(blue_pin, freq=PWM_FREQ, duty_u16=MAX_DUTY_CYCLE)
         self._blue_pin = PWM(green_pin, freq=PWM_FREQ, duty_u16=MAX_DUTY_CYCLE)
-        self._color = None
+        self._invert_duty_cycle = invert_duty_cycle
         
     def _convert_color(self, color):
         # Convert color to tuple(red, green, blue)
@@ -73,10 +73,16 @@ class LED:
         
         r, g, b = color
         
-        # We're driving PNP transistors, thus we need to invert the duty cycle
-        r = MAX_DUTY_CYCLE - (r * 257)
-        g = MAX_DUTY_CYCLE - (g * 257)
-        b = MAX_DUTY_CYCLE - (b * 257)
+        r = r * 257
+        g = g * 257
+        b = b * 257
+        
+        if self._invert_duty_cycle:
+            # If using PNP transistors for driving, we need to invert the duty cycle
+            r = MAX_DUTY_CYCLE - r
+            g = MAX_DUTY_CYCLE - g
+            b = MAX_DUTY_CYCLE - b
+
         self._red_pin.duty_u16(r)
         self._green_pin.duty_u16(g)
         self._blue_pin.duty_u16(b)

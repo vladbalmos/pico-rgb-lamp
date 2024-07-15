@@ -23,4 +23,8 @@ class Lamp:
             self._leds[led_idx].set_color(color)
         except IndexError:
             return
+        
+    def restore_state(self, state) -> None:
+        print("Restoring state")
+        pass
             
