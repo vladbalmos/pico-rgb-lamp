@@ -3,7 +3,7 @@ import json
 import asyncio
 from machine import Pin
 from elastic_queue import Queue
-from led import LED, Colors
+from led import LED
 from lamp import Lamp
 import device
 import mqtt
@@ -26,7 +26,7 @@ def valid_state_update_request(msg):
     if 'deviceId' not in payload or 'featureId' not in payload:
         return False
         
-    if payload['deviceId'] != device.id:
+    if payload['deviceId'] != device.get_id():
         return False
         
     return device.has_feature(payload['featureId'])
@@ -68,10 +68,10 @@ async def main():
                 continue
 
             updates = device.update(msg["payload"])
-            for (feature_id, new_state) in updates:
+            for (feature_id, new_value) in updates:
                 if feature_id is None:
                     continue
-                mqtt.broadcast(feature_id, new_state)
+                mqtt.broadcast(feature_id, new_value)
             
         while not mqtt_state_queue.empty():
             state = mqtt_state_queue.get_nowait()

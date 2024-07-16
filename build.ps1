@@ -61,6 +61,7 @@ function clean {
         }
         mpremote.exe fs rm $file
     }
+    reset
 }
 
 function run {
