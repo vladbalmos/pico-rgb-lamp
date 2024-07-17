@@ -29,6 +29,7 @@ class LED:
         self._green_pin = PWM(blue_pin, freq=PWM_FREQ, duty_u16=MAX_DUTY_CYCLE)
         self._blue_pin = PWM(green_pin, freq=PWM_FREQ, duty_u16=MAX_DUTY_CYCLE)
         self._invert_duty_cycle = invert_duty_cycle
+        self.color = None
         
     def _convert_color(self, color):
         # Convert color to tuple(red, green, blue)
@@ -71,6 +72,8 @@ class LED:
         if color is None:
             return
         
+        self.color = color
+
         r, g, b = color
         
         r = r * 257

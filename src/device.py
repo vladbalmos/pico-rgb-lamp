@@ -23,6 +23,7 @@ def persist_state(_):
 
 def update(data):
     global _persist_state_timer
+    print(data)
     result = _lamp.change_state(data["featureId"], data["state"])
     for (feature_id, value) in result:
         for f in _state["features"]:

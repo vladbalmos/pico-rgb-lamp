@@ -123,6 +123,7 @@ async def init(device_config, main_msg_queue, mqtt_state_queue):
             print(f"Connecting to {config['server']}...")
             _mqtt_state_queue.put_nowait("connecting")
             await _connect_task
+            print("in here")
 
             if _mqtt_up_task is not None:
                 _mqtt_up_task.cancel()
@@ -140,7 +141,7 @@ async def init(device_config, main_msg_queue, mqtt_state_queue):
                 asyncio.create_task(process_broadcast_queue())
                 
         except BaseException as e:
-            print("Connection error", e)
+            print("Connection error:", e)
         finally:
             client.close()
             await asyncio.sleep_ms(250)

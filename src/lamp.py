@@ -1,9 +1,16 @@
+import animation
+
 class Lamp:
 
     def __init__(self, leds) -> None:
         self._leds = leds
+        self._animation = None
         
     def change_state(self, feature_id, value):
+        if self._animation:
+            self._animation.stop()
+            self._animation = None
+            
         if feature_id == "change_global_color":
             self.change_all_colors(value)
             result = [(feature_id, value)]
@@ -18,6 +25,21 @@ class Lamp:
                 return
             self.change_led_color(led_idx, value)
             return [(feature_id, value)]
+        
+        if feature_id == "animation":
+            self.set_animation(value)
+            return [(feature_id, value)]
+        
+        return [(feature_id, value)]
+    
+    def set_animation(self, name):
+        if self._animation:
+            self._animation.stop()
+            
+        self._animation = animation.factory(name, self._leds)
+        self._animation.start()
+
+        
             
     def change_all_colors(self, color):
         for led in self._leds:

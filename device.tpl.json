@@ -51,6 +51,22 @@
                 "type": "color",
                 "default": "#ff0000"
             }
+        },
+        {
+            "name": "Animation",
+            "id": "animation",
+            "schema": {
+                "type": "list",
+                "item": "string",
+                "valid_values": [
+                    "off",
+                    "rainbow",
+                    "rainbow_cycle",
+                    "theater_chase",
+                    "theater_chase_rainbow"
+                ],
+                "default": "off"
+            }
         }
     ],
     "topics": {
