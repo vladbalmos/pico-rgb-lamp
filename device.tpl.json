@@ -60,10 +60,9 @@
                 "item": "string",
                 "valid_values": [
                     "off",
-                    "rainbow",
-                    "rainbow_cycle",
-                    "theater_chase",
-                    "theater_chase_rainbow"
+                    "breathe",
+                    "wheel",
+                    "rainbow"
                 ],
                 "default": "off"
             }

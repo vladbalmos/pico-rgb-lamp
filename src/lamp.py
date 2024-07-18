@@ -16,6 +16,8 @@ class Lamp:
             result = [(feature_id, value)]
             for i in range(len(self._leds)):
                 result.append(('change_led' + str(i) + '_color', value))
+            
+            result.append(('animation', 'off'))
             return result
         
         if feature_id.startswith("change_led") and feature_id.endswith("_color"):
@@ -24,7 +26,7 @@ class Lamp:
             except ValueError:
                 return
             self.change_led_color(led_idx, value)
-            return [(feature_id, value)]
+            return [(feature_id, value), ('animation', 'off')]
         
         if feature_id == "animation":
             self.set_animation(value)
@@ -39,8 +41,6 @@ class Lamp:
         self._animation = animation.factory(name, self._leds)
         self._animation.start()
 
-        
-            
     def change_all_colors(self, color):
         for led in self._leds:
             led.set_color(color)
@@ -69,3 +69,7 @@ class Lamp:
                 except ValueError:
                     return
                 self.change_led_color(led_idx, value)
+
+            if feature["id"] == "animation":
+                self.set_animation(value)
+                continue

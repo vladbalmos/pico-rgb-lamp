@@ -3,6 +3,7 @@ import json
 from elastic_queue import Queue
 from mqtt_as import MQTTClient, config
 
+MQTTClient.DEBUG = True
 _client = None
 _device_config = None
 _main_msg_queue = None
@@ -123,7 +124,6 @@ async def init(device_config, main_msg_queue, mqtt_state_queue):
             print(f"Connecting to {config['server']}...")
             _mqtt_state_queue.put_nowait("connecting")
             await _connect_task
-            print("in here")
 
             if _mqtt_up_task is not None:
                 _mqtt_up_task.cancel()
@@ -144,5 +144,6 @@ async def init(device_config, main_msg_queue, mqtt_state_queue):
             print("Connection error:", e)
         finally:
             client.close()
+            print("Connection closed")
             await asyncio.sleep_ms(250)
     
