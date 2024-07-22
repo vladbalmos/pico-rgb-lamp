@@ -200,7 +200,7 @@ class BreatheAnimation(Animation):
 
 class WheelAnimation(Animation):
 
-    def __init__(self, leds, duration_s = 20.0):
+    def __init__(self, leds, duration_s = 60.0):
         super().__init__(leds, duration_s)
         self._h, self._s, self._v = rgb_to_hsv(*self._leds[0].color)
 
