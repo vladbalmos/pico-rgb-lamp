@@ -78,7 +78,7 @@ async def mqtt_message(client):
             await register_device()
             continue
         
-        if topic == _device_config["topics"]["subscription"]["device"]:
+        if topic == _device_config["topics"]["subscription"]["device"] or topic == _device_config["topics"]["subscription"]["lighting"]:
             try:
                 msg = json.loads(msg)
             except Exception as e:

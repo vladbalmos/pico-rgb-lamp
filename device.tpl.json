@@ -71,11 +71,12 @@
     "topics": {
         "subscription": {
             "manager": "acme/devices/request",
-            "device": "acme/devices/type-of-device/name-of-device/request"
+            "lighting": "acme/devices/lighting",
+            "device": "acme/devices/lighting/name-of-device/request"
         },
         "publish": {
             "manager": "acme/devices/response",
-            "device": "acme/devices/type-of-device/name-of-device/response"
+            "device": "acme/devices/lighting/name-of-device/response"
         }
     }
 }
