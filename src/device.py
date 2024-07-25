@@ -2,7 +2,7 @@ from machine import Timer
 import json
 
 _lamp = None
-_state = None
+_state = {}
 _persist_state_timer = None
 
 def has_feature(id):
@@ -23,16 +23,21 @@ def persist_state(_):
 
 def update(data):
     global _persist_state_timer
-    print(data)
+    
+    if _lamp is None:
+        return
+
     result = _lamp.change_state(data["featureId"], data["state"])
     for (feature_id, value) in result:
         for f in _state["features"]:
             if f["id"] == feature_id:
                 f["value"] = value
                 break
+
     if _persist_state_timer:
         _persist_state_timer.deinit()
         _persist_state_timer = None
+
     _persist_state_timer = Timer(-1)
     _persist_state_timer.init(mode=Timer.ONE_SHOT, period=500, callback=persist_state)
     return result
@@ -52,5 +57,4 @@ def init(lamp, default_state):
         print("No last state found. Using default config. Error: ", e)
         
     _lamp.restore_state(_state["features"])
-    
     return _state

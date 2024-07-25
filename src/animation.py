@@ -2,17 +2,7 @@ import time
 import led
 from machine import Timer
 
-FRAME_RATE = 60
-
-rainbow_colors = [
-    (255, 0, 0), # red 
-    (255, 127, 0), # orange 
-    (255, 255, 0), # yellow 
-    (0, 255, 0), # green 
-    (0, 0, 255), # blue 
-    (75, 0, 130), # indigo 
-    (148, 0, 211) # violet 
-]
+_FRAME_RATE = const(60)
 
 def rgb_to_hsv(r, g, b):
     r, g, b = r / 255.0, g / 255.0, b / 255.0
@@ -74,7 +64,7 @@ class Animation:
         self._leds = leds
         self._timer = None
         self._duration_s = duration_s
-        self._steps = duration_s * FRAME_RATE
+        self._steps = duration_s * _FRAME_RATE
         self._current_step = 1
     
     def stop(self):
@@ -90,7 +80,7 @@ class Animation:
             return
 
         self._timer = Timer(-1)
-        self._timer.init(mode = Timer.PERIODIC, freq = FRAME_RATE, callback = self._update)
+        self._timer.init(mode = Timer.PERIODIC, freq = _FRAME_RATE, callback = self._update)
         
     def _update(self, _):
         # Implement in child class
@@ -118,16 +108,24 @@ class TransitionAnimation(Animation):
         self._db = (to_color[2] - from_color[2]) / self._steps
         
     def _update(self, _):
-        r = self._from_color[0] + self._current_step * self._dr
-        g = self._from_color[1] + self._current_step * self._dg
-        b = self._from_color[2] + self._current_step * self._db
+        from_color = self._from_color
+        steps = self._steps
+        leds = self._leds
+        
+        dr = self._dr
+        dg = self._dg
+        db = self._db
+
+        r = from_color[0] + self._current_step * dr
+        g = from_color[1] + self._current_step * dg
+        b = from_color[2] + self._current_step * db
         
         
-        for _led in self._leds:
+        for _led in leds:
             _led.set_color((round(r), round(g), round(b)))
 
         self._current_step += 1
-        if self._current_step > self._steps:
+        if self._current_step > steps:
             super().stop()
         
         
@@ -136,6 +134,15 @@ class RainbowAnimation(Animation):
         super().__init__(leds, duration_s)
         self._current_color_index = 0
         self._current_animation = None
+        self._rainbow_colors = [
+            (255, 0, 0), # red 
+            (255, 127, 0), # orange 
+            (255, 255, 0), # yellow 
+            (0, 255, 0), # green 
+            (0, 0, 255), # blue 
+            (75, 0, 130), # indigo 
+            (148, 0, 211) # violet 
+        ]
         
     def start(self):
         self._timer = Timer(-1)
@@ -154,6 +161,8 @@ class RainbowAnimation(Animation):
     def _update(self, _):
         if self._current_animation:
             self._current_animation.stop()
+            
+        rainbow_colors = self._rainbow_colors
 
         from_color = rainbow_colors[self._current_color_index]
         
@@ -177,7 +186,14 @@ class BreatheAnimation(Animation):
         self._min_brightness = 0.05
         
     def _update(self, _):
-        if self._current_step > self._steps:
+        leds = self._leds
+        steps = self._steps
+        min_brightness = self._min_brightness
+        starting_r = self._starting_r
+        starting_g = self._starting_g
+        starting_b = self._starting_b
+
+        if self._current_step > steps:
             self._current_step = 1
             if not self._brighter:
                 self._brighter = True
@@ -185,17 +201,17 @@ class BreatheAnimation(Animation):
                 self._brighter = False
 
         if not self._brighter:
-            dim_factor = max(self._min_brightness, 1 - self._current_step / self._steps)
+            dim_factor = max(min_brightness, 1 - self._current_step / steps)
         else:
-            dim_factor = max(self._min_brightness, self._current_step / self._steps)
+            dim_factor = max(min_brightness, self._current_step / steps)
         
-        r = self._starting_r * dim_factor
-        g = self._starting_g * dim_factor
-        b = self._starting_b * dim_factor
+        r = starting_r * dim_factor
+        g = starting_g * dim_factor
+        b = starting_b * dim_factor
         
         self._current_step += 1
         
-        for _led in self._leds:
+        for _led in leds:
             _led.set_color((round(r), round(g), round(b)))
 
 class WheelAnimation(Animation):
@@ -205,14 +221,19 @@ class WheelAnimation(Animation):
         self._h, self._s, self._v = rgb_to_hsv(*self._leds[0].color)
 
     def _update(self, _):
-        self._h += 360 / self._steps
+        leds = self._leds
+        steps = self._steps
+        self._h += 360 / steps
+        
+        s = self._s
+        v = self._v
         
         if self._h > 360:
-            self._h = 0
+            h = 0
             
-        r, g, b = hsv_to_rgb(self._h, self._s, self._v)
+        r, g, b = hsv_to_rgb(self._h, s, v)
 
-        for _led in self._leds:
+        for _led in leds:
             _led.set_color((round(r), round(g), round(b)))
 
     

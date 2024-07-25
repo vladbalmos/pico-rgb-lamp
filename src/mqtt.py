@@ -8,7 +8,7 @@ _client = None
 _device_config = None
 _main_msg_queue = None
 _mqtt_state_queue = None
-_broadcast_queue = Queue(32)
+_broadcast_queue = Queue(8)
 
 _initial_connection_establed = False
 _connect_task = None
@@ -134,11 +134,13 @@ async def init(device_config, main_msg_queue, mqtt_state_queue):
 
             for coroutine in (mqtt_up, mqtt_down, mqtt_message):
                 asyncio.create_task(coroutine(client))
-            await asyncio.sleep_ms(250)
+
             print(f"Connection status is: {_initial_connection_establed}")
             
             if _initial_connection_establed:
                 asyncio.create_task(process_broadcast_queue())
+
+            await asyncio.sleep(1)
                 
         except BaseException as e:
             print("Connection error:", e)
