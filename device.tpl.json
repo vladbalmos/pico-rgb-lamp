@@ -11,6 +11,10 @@
         [10, 11, 9]
     ],
     "invert_pwm_duty_cycle": true,
+    "config": {
+        "fft_stream_host": null,
+        "fft_stream_port": null
+    },
     "features": [
         {
             "name": "Change global color",
@@ -62,7 +66,8 @@
                     "off",
                     "breathe",
                     "wheel",
-                    "rainbow"
+                    "rainbow",
+                    "audio visualizer"
                 ],
                 "default": "off"
             }

@@ -29,7 +29,7 @@ async def register_device():
         }
     })
     print("Registering device", _device_config["topics"]["publish"]["manager"], payload)
-    await _client.publish(_device_config["topics"]["publish"]["manager"], payload, qos = 1)
+    await _client.publish(_device_config["topics"]["publish"]["manager"], payload, qos = 0)
     print("Registered device")
     
 def broadcast(feature_id, state):
@@ -81,25 +81,18 @@ async def mqtt_message(client):
         if topic == _device_config["topics"]["subscription"]["device"] or topic == _device_config["topics"]["subscription"]["lighting"]:
             try:
                 msg = json.loads(msg)
+                _main_msg_queue.put_nowait(msg)
             except Exception as e:
                 print("Failed to parse json message", e)
-                await asyncio.sleep_ms(100)
-                continue
-            
-            _main_msg_queue.put_nowait(msg)
-            await asyncio.sleep_ms(10)
-            continue
-        
-        await asyncio.sleep_ms(10)
 
 async def process_broadcast_queue():
     while True:
         msg = await _broadcast_queue.get()
-        if _client is not None:
-            await _client.publish(_device_config["topics"]["publish"]["device"], msg, qos = 1)
-            print("Broadcasted", msg)
-        else:
-            await asyncio.sleep_ms(99)
+        if _client is None:
+            continue    
+
+        await _client.publish(_device_config["topics"]["publish"]["device"], msg, qos = 0)
+        print("Broadcasted", msg)
 
 async def init(device_config, main_msg_queue, mqtt_state_queue):
     global _client, \
@@ -115,7 +108,7 @@ async def init(device_config, main_msg_queue, mqtt_state_queue):
     config["ssid"] = device_config["ssid"]
     config["wifi_pw"] = device_config["password"]
     config["server"] = device_config["server"]
-    config["queue_len"] = 1
+    config["queue_len"] = 8
     
     while not _initial_connection_establed:
         client = MQTTClient(config)
@@ -135,17 +128,17 @@ async def init(device_config, main_msg_queue, mqtt_state_queue):
             for coroutine in (mqtt_up, mqtt_down, mqtt_message):
                 asyncio.create_task(coroutine(client))
 
-            print(f"Connection status is: {_initial_connection_establed}")
+            # Wait for tasks to start
+            await asyncio.sleep_ms(250)
+
+            print(f"Initial connection status is: {_initial_connection_establed}")
             
             if _initial_connection_establed:
                 asyncio.create_task(process_broadcast_queue())
-
-            await asyncio.sleep(1)
-                
         except BaseException as e:
             print("Connection error:", e)
-        finally:
-            client.close()
-            print("Connection closed")
-            await asyncio.sleep_ms(250)
+
+    print("MQTT initialized")
+
+
     

@@ -25,7 +25,7 @@ def lighting_message(msg):
     return True
     
 
-def valid_state_update_request(msg):
+def valid_feature_state_update_request(msg):
     if 'request' not in msg:
         return False
         
@@ -66,13 +66,19 @@ async def handle_messages(msg_queue, device):
     while True:
         msg = await msg_queue.get()
         
-        if valid_state_update_request(msg):
-            print(msg)
-            updates = device.update(msg["payload"])
+        if valid_feature_state_update_request(msg):
+            updates = device.update_features(msg["payload"])
             for (feature_id, new_value) in updates:
                 if feature_id is None:
                     continue
                 mqtt.broadcast(feature_id, new_value)
+                if feature_id == 'animation' and new_value == 'audio visualizer':
+                    # If not fft stream host, pass
+                    # Cancel any fft visualizers
+                    # Create new task for fft visualiser
+                        # implement reconnect strategy
+                        # if not able to connect withing 10 retries, switch to first animation (non "off") in list 
+                    print("Enabling fft streaming")
 
         if lighting_message(msg):
             payload = msg['payload']
@@ -83,7 +89,7 @@ async def handle_messages(msg_queue, device):
                     host = data["host"]
                     port = data["port"]
                     print(f"FFT Stream is at {host}:{port}")
-                    # TODO: set host and port for FFT stream
+                    device.update_config({"fft_stream_host": host, "fft_stream_port": port})
                     continue
         
 async def handle_mqtt_state_changes(mqtt_state_queue):

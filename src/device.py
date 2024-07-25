@@ -20,9 +20,18 @@ def persist_state(_):
             print("State persisted")
     except Exception as e:
         print("Failed to persist state", e)
-
-def update(data):
+        
+def schedule_state_persist():
     global _persist_state_timer
+    if _persist_state_timer:
+        _persist_state_timer.deinit()
+        _persist_state_timer = None
+
+    _persist_state_timer = Timer(-1)
+    _persist_state_timer.init(mode=Timer.ONE_SHOT, period=500, callback=persist_state)
+
+
+def update_features(data):
     
     if _lamp is None:
         return
@@ -34,13 +43,16 @@ def update(data):
                 f["value"] = value
                 break
 
-    if _persist_state_timer:
-        _persist_state_timer.deinit()
-        _persist_state_timer = None
-
-    _persist_state_timer = Timer(-1)
-    _persist_state_timer.init(mode=Timer.ONE_SHOT, period=500, callback=persist_state)
+    schedule_state_persist()
     return result
+
+def update_config(data):
+    if "config" not in _state:
+        _state["config"] = {}
+        
+    _state["config"].update(data)
+    schedule_state_persist()
+
 
 def init(lamp, default_state):
     global _lamp, _state
