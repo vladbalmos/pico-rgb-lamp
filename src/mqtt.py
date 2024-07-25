@@ -3,7 +3,7 @@ import json
 from elastic_queue import Queue
 from mqtt_as import MQTTClient, config
 
-MQTTClient.DEBUG = True
+# MQTTClient.DEBUG = True
 _client = None
 _device_config = None
 _main_msg_queue = None

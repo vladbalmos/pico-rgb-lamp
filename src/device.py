@@ -1,3 +1,4 @@
+import time
 from machine import Timer
 import json
 
@@ -36,7 +37,9 @@ def update_features(data):
     if _lamp is None:
         return
 
+    start_ms = time.ticks_ms()
     result = _lamp.change_state(data["featureId"], data["state"])
+    print(time.ticks_diff(time.ticks_ms(), start_ms), "ms to update features")
     for (feature_id, value) in result:
         for f in _state["features"]:
             if f["id"] == feature_id:
@@ -46,12 +49,28 @@ def update_features(data):
     schedule_state_persist()
     return result
 
-def update_config(data):
-    if "config" not in _state:
-        _state["config"] = {}
-        
-    _state["config"].update(data)
-    schedule_state_persist()
+def config(key, value = None):
+    if type(key) is dict:
+        if "config" not in _state:
+            _state["config"] = {}
+        _state["config"].update(key)
+        schedule_state_persist()
+        return
+    
+    if type(key) is str and value is not None:
+        if "config" not in _state:
+            _state["config"] = {}
+        _state["config"][key] = value
+        schedule_state_persist()
+        return
+    
+    if type(key) is str:
+        if "config" not in _state:
+            return None
+        return _state["config"].get(key, None)
+    
+    raise ValueError("Invalid arguments")
+    
 
 
 def init(lamp, default_state):

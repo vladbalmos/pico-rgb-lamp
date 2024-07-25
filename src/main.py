@@ -1,16 +1,16 @@
+import gc
 import time
 import json
 import asyncio
-# import struct
 from machine import Pin
 from elastic_queue import Queue
 from led import LED
 from lamp import Lamp
+import audio_visualizer
 import device
 import mqtt
 
 _TIMEOUT_MS = const(500)
-_STATUS_LED_TOGGLE_INTERVAL_MS = const(64)
 
 def lighting_message(msg):
     if 'sender' not in msg:
@@ -45,41 +45,38 @@ def valid_feature_state_update_request(msg):
         
     return device.has_feature(payload['featureId'])
 
-# async def read_size(reader):
-#     prefix_size = struct.calcsize("!I")
-#     try:
-#         buf = await asyncio.wait_for(reader.readexactly(prefix_size), 1)
-#     except asyncio.TimeoutError:
-#         return 0
-#     size = struct.unpack("!I", buf)[0]
-#     return size
-
-# async def read_data(reader, size):
-#     try:
-#         buf = await asyncio.wait_for(reader.readexactly(size), 1)
-#     except asyncio.TimeoutError:
-#         return b''
-
-#     return buf
 
 async def handle_messages(msg_queue, device):
+    audio_visualizer_task = None
     while True:
         msg = await msg_queue.get()
         
         if valid_feature_state_update_request(msg):
             updates = device.update_features(msg["payload"])
+            
+            if len(updates) == 1 and updates[0][0] == 'animation' and updates[0][1] == 'audio visualizer':
+                fft_stream_host = device.config("fft_stream_host")
+                fft_stream_port = device.config("fft_stream_port")
+                
+                if type(fft_stream_host) is not str or len(fft_stream_host) == 0 or type(fft_stream_port) is not int or fft_stream_port < 1:
+                    continue
+                
+                if audio_visualizer_task is not None:
+                    audio_visualizer_task.cancel()
+                    audio_visualizer_task = None
+                    
+                audio_visualizer_task = asyncio.create_task(audio_visualizer.run(fft_stream_host, fft_stream_port, device))
+            else:
+                if audio_visualizer_task is not None:
+                    audio_visualizer_task.cancel()
+                    audio_visualizer_task = None
+
             for (feature_id, new_value) in updates:
                 if feature_id is None:
                     continue
                 mqtt.broadcast(feature_id, new_value)
-                if feature_id == 'animation' and new_value == 'audio visualizer':
-                    # If not fft stream host, pass
-                    # Cancel any fft visualizers
-                    # Create new task for fft visualiser
-                        # implement reconnect strategy
-                        # if not able to connect withing 10 retries, switch to first animation (non "off") in list 
-                    print("Enabling fft streaming")
 
+                    
         if lighting_message(msg):
             payload = msg['payload']
             if "event" in payload and payload["event"] == "announcement" and "data" in payload:
@@ -89,22 +86,12 @@ async def handle_messages(msg_queue, device):
                     host = data["host"]
                     port = data["port"]
                     print(f"FFT Stream is at {host}:{port}")
-                    device.update_config({"fft_stream_host": host, "fft_stream_port": port})
+                    device.config({"fft_stream_host": host, "fft_stream_port": port})
                     continue
         
 async def handle_mqtt_state_changes(mqtt_state_queue):
     while True:
         state = await mqtt_state_queue.get()
-        # if state == "up":
-        #     tcp_reader, tcp_writer = await asyncio.open_connection('192.168.1.199', 12345)
-        # elif state == "down":
-        #     if tcp_reader is not None:
-        #         try:
-        #             tcp_writer.close()
-        #             await tcp_writer.wait_closed()
-        #             tcp_reader = None
-        #         except:
-        #             pass
         print("MQTT state", state)
 
 async def main():
@@ -130,44 +117,10 @@ async def main():
     asyncio.create_task(handle_messages(msg_queue, device))
     asyncio.create_task(handle_mqtt_state_changes(mqtt_state_queue))
     
-    # tcp_reader = None
-    # tcp_writer = None
-    
-    # last_fft_ms = time.ticks_ms()
-    # durations = []
     while True:
         status_led.toggle()
-        await asyncio.sleep_ms(_TIMEOUT_MS)
-        
-        # if tcp_reader:
-        #     try:
-        #         size = await read_size(tcp_reader)
-        #         if size == 0:
-        #             await asyncio.sleep_ms(TIMEOUT_MS)
-        #             continue
-        #         data = await read_data(tcp_reader, size)
-        #         if len(data) == 0:
-        #             await asyncio.sleep_ms(TIMEOUT_MS)
-        #             continue
-                
-        #         values_count = len(data) // struct.calcsize("!f")
-        #         unpack_format = f'!{values_count}f'
-        #         fft_values = struct.unpack(unpack_format, data)
-        #         now_ms = time.ticks_ms()
-        #         durations.append(time.ticks_diff(now_ms, last_fft_ms))
-                
-        #         if len(durations) > 100:
-        #             print(sum(durations) / len(durations))
-        #             durations = []
-        #         last_fft_ms = now_ms
-        #     except EOFError as e:
-        #         tcp_reader = None
-        #         tcp_writer.close()
-        #         tcp_writer.wait_closed()
-        #         print("Disconnected", e)
-        #     except Exception as e:
-        #         print("Error", e)
-            
+        await asyncio.sleep_ms(_TIMEOUT_MS) # type: ignore
+        gc.collect()
 
 if __name__ == '__main__':
     asyncio.run(main())
