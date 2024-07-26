@@ -117,10 +117,20 @@ async def main():
     asyncio.create_task(handle_messages(msg_queue, device))
     asyncio.create_task(handle_mqtt_state_changes(mqtt_state_queue))
     
+    last_gc_ms = time.ticks_ms()
     while True:
         status_led.toggle()
-        await asyncio.sleep_ms(_TIMEOUT_MS) # type: ignore
+        now_ms = time.ticks_ms()
+        elapsed_ms = time.ticks_diff(now_ms, last_gc_ms)
+        
+        gc_start_ms = time.ticks_ms()
         gc.collect()
+        gc_duration_ms = time.ticks_diff(time.ticks_ms(), gc_start_ms)
+
+        if elapsed_ms > 5000:
+            last_gc_ms = now_ms
+            print("RAM free %d alloc %d. GC Duration %d"  % (gc.mem_free(), gc.mem_alloc(), gc_duration_ms))
+        await asyncio.sleep_ms(_TIMEOUT_MS) # type: ignore
 
 if __name__ == '__main__':
     asyncio.run(main())

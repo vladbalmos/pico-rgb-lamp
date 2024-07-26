@@ -14,7 +14,7 @@ def has_feature(id):
 def get_id():
     return _state["id"]
         
-def persist_state(_):
+def persist_state(_ = None):
     try:
         with open("state.json", "w") as state_file:
             state_file.write(json.dumps(_state))
@@ -33,7 +33,6 @@ def schedule_state_persist():
 
 
 def update_features(data):
-    
     if _lamp is None:
         return
 
@@ -46,7 +45,8 @@ def update_features(data):
                 f["value"] = value
                 break
 
-    schedule_state_persist()
+    # schedule_state_persist()
+    persist_state()
     return result
 
 def config(key, value = None):
@@ -54,14 +54,16 @@ def config(key, value = None):
         if "config" not in _state:
             _state["config"] = {}
         _state["config"].update(key)
-        schedule_state_persist()
+        persist_state()
+        # schedule_state_persist()
         return
     
     if type(key) is str and value is not None:
         if "config" not in _state:
             _state["config"] = {}
         _state["config"][key] = value
-        schedule_state_persist()
+        persist_state()
+        # schedule_state_persist()
         return
     
     if type(key) is str:
