@@ -129,7 +129,7 @@ async def init(device_config, main_msg_queue, mqtt_state_queue):
                 asyncio.create_task(coroutine(client))
 
             # Wait for tasks to start
-            await asyncio.sleep_ms(250)
+            await asyncio.sleep_ms(1000)
 
             print(f"Initial connection status is: {_initial_connection_establed}")
             

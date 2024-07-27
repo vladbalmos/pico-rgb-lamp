@@ -2,7 +2,7 @@ import gc
 import time
 import json
 import asyncio
-from machine import Pin
+from machine import Pin, freq
 from elastic_queue import Queue
 from led import LED
 from lamp import Lamp
@@ -126,6 +126,7 @@ async def main():
         gc_start_ms = time.ticks_ms()
         gc.collect()
         gc_duration_ms = time.ticks_diff(time.ticks_ms(), gc_start_ms)
+        gc_duration_ms = 0
 
         if elapsed_ms > 5000:
             last_gc_ms = now_ms
@@ -133,5 +134,6 @@ async def main():
         await asyncio.sleep_ms(_TIMEOUT_MS) # type: ignore
 
 if __name__ == '__main__':
+    print(freq())
     asyncio.run(main())
     asyncio.new_event_loop()

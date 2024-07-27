@@ -1,124 +1,151 @@
 import gc
+import socket
+import select
 import time
 import struct
 import asyncio
 
-config_buf = bytearray(struct.calcsize("!bb"))
-# fft_buf = bytearray(10 * struct.calcsize("!f"))
-fft_buf = None
-fft_config = {}
+class ClientError(Exception):
+    pass
 
-async def read_config(reader):
-    buf = config_buf
-    bytes_read = 0
-    
-    while bytes_read < len(buf):
-        br = await reader.readinto(config_buf)
-        bytes_read += br
+class Client:
 
-    framerate = struct.unpack("!b", buf[0:1])[0]
-    frequency_bands_count = struct.unpack("!b", buf[1:2])[0]
-    return framerate, frequency_bands_count
+    def __init__(self, sock):
+        self._sock = sock
+        self._sock.setblocking(False)
 
-async def read_data(reader):
-    buf = fft_buf
-    bytes_read = 0
-    
-    while bytes_read < len(buf): # type: ignore
-        br = await reader.readinto(buf)
-        bytes_read += br
-    return buf
+        self._poller = select.poll()
+        self._poller.register(self._sock, select.POLLIN)
 
-async def read_fft_data(reader):
-    global fft_buf
-    
-    config = fft_config
+        self.last_read_duration_ms = 0
 
-    if 'framerate' not in fft_config:
-        framerate, frequency_bands_count = await read_config(reader)
+        self._config_buf = bytearray(struct.calcsize("!bb"))
+        self._data_buf = bytearray(0)
         
+        self.config = self._read_config()
+        
+    def _read_data(self, buf, timeout_ms = 1):
+        read_timedout = True
+        start_ms = time.ticks_ms()
+        for sock, event in self._poller.ipoll(timeout_ms): # type: ignore
+            if event & select.POLLIN:
+                bytes_read = sock.readinto(buf)
+                if bytes_read != len(buf):
+                    raise ClientError("Failed to read enough data")
+                read_timedout = False
+                break
+            
+            if event & select.POLLERR or event & select.POLLHUP:
+                raise ClientError("Socket error")
+            
+        self.last_read_duration_ms = time.ticks_diff(time.ticks_ms(), start_ms)
+        return not read_timedout
+        
+    def _read_config(self):
+        if not self._read_data(self._config_buf, 1000):
+            raise ClientError("Config read timed out")
+
+        framerate = struct.unpack("!b", self._config_buf[0:1])[0] # type: ignore
+        frequency_bands_count = struct.unpack("!b", self._config_buf[1:2])[0] # type: ignore
+
+        frames_count = 4 * frequency_bands_count
+        self._data_buf = bytearray(frames_count * struct.calcsize("!f"))
+
+        config = {}
         config['framerate'] = framerate
         config['frequency_bands_count'] = frequency_bands_count
-        config['period_ms'] = 1000 // framerate + 2
-        fft_buf = bytearray(frequency_bands_count * struct.calcsize("!f"))
-        config['fft_unpack_fmt'] = f"!{frequency_bands_count}f"
-        print("Received config", config)
+        config['period_ms'] = 1000 // framerate + 1
+        config['fft_unpack_fmt'] = f"!{frames_count}f"
+        
+        return config
+        
+    def read_fft_data(self):
+        start_ms = time.ticks_ms()
+        fft_data = None
 
-    data = await read_data(reader)
-    fft_values = struct.unpack(config["fft_unpack_fmt"], data)
-    return fft_values
+        if self._read_data(self._data_buf, 1):
+            fft_data = struct.unpack(self.config["fft_unpack_fmt"], self._data_buf)
+
+        self.last_read_duration_ms = time.ticks_diff(time.ticks_ms(), start_ms)
+        return fft_data
+        
+    def close(self):
+        try:
+            self._data_buf = None
+            self._config_buf = None
+            self.config = {}
+
+            self._poller.unregister(self._sock) # type: ignore
+            self._poller = None
+            self._sock.close() # type: ignore
+            self._sock = None
+        except:
+            pass
+
+def connect(host, port):
+    global fft_buf
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(1)
+    print("Getting address info")
+    addr_info = socket.getaddrinfo(host, port)
+    print("Got address info")
+    print("Connecting")
+    sock.connect(addr_info[0][-1])
+    print("Connected")
+    
+    client = Client(sock)
+    return client
 
 async def run(host, port, device):
     global fft_config, fft_buf
-    tcp_reader = None
-    tcp_writer = None
-    last_fft_ms = time.ticks_ms()
-    last_output_ms = time.ticks_ms()
-    config = fft_config
+
+    client = None
     
+    last_fft_data_ms = 0
+    last_output_ms = time.ticks_ms()
     gc.collect()
-    lag_count = 0
-    count = 0
+    fft_values = None
+    default_sleep_ms = 13
     try:
         while True:
-            if tcp_reader is None:
-                print("Connecting to FFT stream")
-                tcp_reader, tcp_writer = await asyncio.open_connection(host, port)
-
             try:
-                start_ms = time.ticks_ms()
-                fft_data = await read_fft_data(tcp_reader)
                 now_ms = time.ticks_ms()
-                read_duration_ms = time.ticks_diff(now_ms, start_ms)
-                elapsed_ms = time.ticks_diff(now_ms, last_fft_ms)
-                
-                count += 1
-                if elapsed_ms > config['period_ms']:
-                    lag_count += 1
-                    
-                # if elapsed_ms < (config['period_ms'] - 4):
-                #     last_fft_ms = time.ticks_ms()
-                #     continue # Why?
+                if client is None:
+                    client = connect(host, port)
 
-                if time.ticks_diff(now_ms, last_output_ms) > 1000:
-                    print(f"Total {count} Lagged: {lag_count}")
-                    count = 0
-                    lag_count = 0
-                    last_output_ms = now_ms
-
-                remaining_ms = config['period_ms'] - (elapsed_ms - config['period_ms'])
-                if remaining_ms < 8:
-                    # Skip processing this frame
-                    last_fft_ms = time.ticks_ms()
-                    print("Skipping frame", elapsed_ms, config['period_ms'], remaining_ms)
+                try:
+                    fft_values = client.read_fft_data()
+                except ClientError as e:
+                    print("Read error", e)
+                    client.close()
+                    client = None
+                    gc.collect()
+                    await asyncio.sleep_ms(64)
                     continue
                 
+                if fft_values is None:
+                    await asyncio.sleep_ms(4 * client.config["period_ms"])
+                    continue
                 
+                if fft_values and last_fft_data_ms > 0:
+                    elapsed_ms = time.ticks_diff(time.ticks_ms(), last_fft_data_ms)
+                    if elapsed_ms > 25:
+                        print("Elapsed", time.ticks_diff(time.ticks_ms(), last_fft_data_ms), "ms", client.last_read_duration_ms)
+                    
+                last_fft_data_ms = now_ms
                 
-                last_fft_ms = time.ticks_ms()
-                sleep_ms = config['period_ms'] - read_duration_ms
-                if sleep_ms < 1:
-                    sleep_ms = 1
-                await asyncio.sleep_ms(sleep_ms)
+                await asyncio.sleep_ms(4 * client.config["period_ms"])
 
-            except (EOFError) as e:
-                fft_buf = None
-                fft_config = {}
-                tcp_reader = None
-                tcp_writer.close() # type: ignore
-                await tcp_writer.wait_closed() # type: ignore
-                tcp_writer = None
-                gc.collect()
-                print("Disconnected", e)
+            except (ClientError, OSError) as e:
+                if client is not None:
+                    client.close()
+                    client = None
+                    gc.collect()
+                await asyncio.sleep_ms(100)
+                print("Caught exception", e)
 
     except asyncio.CancelledError:
-        if tcp_writer is not None:
-            fft_buf = None
-            fft_config = {}
-            tcp_writer.close()
-            await tcp_writer.wait_closed()
-            gc.collect()
+        client.close()
+        client = None
+        gc.collect()
         print("Cancelled")
-
-    except Exception as e:
-        print("Caught exception", e)
