@@ -42,6 +42,7 @@ class Client:
         
         self.config = config
         
+    @micropython.native
     async def _read_data(self, buf):
         bytes_read = 0
         buf_view = memoryview(buf)
@@ -53,6 +54,7 @@ class Client:
 
         self.last_read_duration_ms = time.ticks_diff(time.ticks_ms(), start_ms)
         
+    @micropython.native
     async def read_fft_data(self):
         start_ms = time.ticks_ms()
         fft_data = None
@@ -90,6 +92,7 @@ async def stop_task(task):
     except asyncio.CancelledError:
         pass
 
+@micropython.native
 async def render(queue, config, device):
     # last_frame_ms = 0
     while True:

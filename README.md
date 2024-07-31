@@ -29,4 +29,7 @@ Once micropython is flashed and the source code files are copied to the device (
     
 This will reset the device first, copy the `src/` dir to the device and then call `mpremote run src/main.py`
 
+# TODO
 
+* improve netcode
+* improve fft animation & create more variations

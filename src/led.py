@@ -96,6 +96,7 @@ class LED:
         self._green_pin.duty_u16(g)
         self._blue_pin.duty_u16(b)
         
+    @micropython.native
     def set_duty(self, r, g, b):
         self._red_pin.duty_u16(_MAX_DUTY_CYCLE - r)
         self._green_pin.duty_u16(_MAX_DUTY_CYCLE - g)

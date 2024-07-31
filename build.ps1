@@ -41,7 +41,7 @@ function copy-src {
 
 function reset {
     Write-Output "Resetting device"
-    mpremote reset
+    mpremote soft-reset
 }
 
 function clean {
