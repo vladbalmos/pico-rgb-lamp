@@ -72,8 +72,9 @@ def config(key, value = None):
         return _state["config"].get(key, None)
     
     raise ValueError("Invalid arguments")
-    
 
+def process_amplitudes(amplitudes, fft_framerate):
+    _lamp.dance(amplitudes, fft_framerate) # type: ignore
 
 def init(lamp, default_state):
     global _lamp, _state

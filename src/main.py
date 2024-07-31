@@ -2,6 +2,7 @@ import gc
 import time
 import json
 import asyncio
+import network
 from machine import Pin, freq
 from elastic_queue import Queue
 from led import LED
@@ -135,5 +136,8 @@ async def main():
 
 if __name__ == '__main__':
     print(freq())
+    freq(125000000)
+    print(freq())
     asyncio.run(main())
+    mqtt.disconnect()
     asyncio.new_event_loop()

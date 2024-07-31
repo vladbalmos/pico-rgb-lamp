@@ -1,3 +1,4 @@
+import time
 from machine import PWM
 
 _MAX_DUTY_CYCLE = const(65535)
@@ -31,7 +32,9 @@ class LED:
         self._invert_duty_cycle = invert_duty_cycle
         self.color = None
         
+    @micropython.native
     def _convert_color(self, color):
+        now = time.ticks_us()
         colors = LED.Colors
         # Convert color to tuple(red, green, blue)
         # where each color channel is between 0, 255
@@ -64,8 +67,10 @@ class LED:
                 adjusted_blue = color_tuple[2]
             color_tuple = (min(_RED_MAX, adjusted_red), min(_GREEN_MAX, adjusted_green), min(_BLUE_MAX, adjusted_blue))
 
+        print(time.ticks_diff(time.ticks_us(), now))
         return color_tuple
 
+    @micropython.native
     def set_color(self, color) -> None:
         if not isinstance(color, tuple):
             color = self._convert_color(color)

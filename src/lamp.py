@@ -1,3 +1,4 @@
+import gc
 import animation
 
 class Lamp:
@@ -6,6 +7,7 @@ class Lamp:
         self._leds = leds
         self._animation = None
         
+    @micropython.native
     def change_state(self, feature_id, value):
         if self._animation:
             self._animation.stop()
@@ -34,23 +36,37 @@ class Lamp:
         
         return [(feature_id, value)]
     
+    @micropython.native
     def set_animation(self, name):
         if self._animation:
             self._animation.stop()
             
         self._animation = animation.factory(name, self._leds)
         self._animation.start()
+        
+    @micropython.native
+    def dance(self, amplitudes, fft_framerate):
+        if not self._animation or not isinstance(self._animation, animation.AudioVisualizer):
+            if self._animation:
+                self._animation.stop()
+                gc.collect()
 
+            self._animation = animation.AudioVisualizer(self._leds, fft_framerate, "pulse")
+        self._animation.feed(amplitudes)
+
+    @micropython.native
     def change_all_colors(self, color):
         for led in self._leds:
             led.set_color(color)
             
+    @micropython.native
     def change_led_color(self, led_idx, color):
         try:
             self._leds[led_idx].set_color(color)
         except IndexError:
             return 
         
+    @micropython.native
     def restore_state(self, state) -> None:
         for feature in state:
             value = feature["schema"]["default"]

@@ -1,63 +1,11 @@
 import time
 import led
+from collections import deque
+import animation_utils as utils
 from machine import Timer
 
 _FRAME_RATE = const(60)
 
-def rgb_to_hsv(r, g, b):
-    r, g, b = r / 255.0, g / 255.0, b / 255.0
-    mx = max(r, g, b)
-    mn = min(r, g, b)
-    df = mx-mn
-    if mx == mn:
-        h = 0
-    elif mx == r:
-        h = (60 * ((g-b)/df) + 360) % 360
-    elif mx == g:
-        h = (60 * ((b-r)/df) + 120) % 360
-    elif mx == b:
-        h = (60 * ((r-g)/df) + 240) % 360
-    if mx == 0:
-        s = 0
-    else:
-        s = (df/mx) * 100
-    v = mx * 100
-    return (h, s, v)    
-
-def hsv_to_rgb(h, s, v):
-    s /= 100  # Convert percentage to [0, 1]
-    v /= 100  # Convert percentage to [0, 1]
-    
-    if s == 0:
-        # Achromatic (grey)
-        r = g = b = v * 255
-        return int(r), int(g), int(b)
-    
-    h = h / 60  # sector 0 to 5
-    i = int(h)
-    f = h - i  # factorial part of h
-    p = v * (1 - s)
-    q = v * (1 - s * f)
-    t = v * (1 - s * (1 - f))
-    
-    if i == 0:
-        r, g, b = v, t, p
-    elif i == 1:
-        r, g, b = q, v, p
-    elif i == 2:
-        r, g, b = p, v, t
-    elif i == 3:
-        r, g, b = p, q, v
-    elif i == 4:
-        r, g, b = t, p, v
-    else:  # i == 5
-        r, g, b = v, p, q
-    
-    r = r * 255
-    g = g * 255
-    b = b * 255
-    
-    return int(r), int(g), int(b)
 
 class Animation:
     def __init__(self, leds, duration_s = 5.0):
@@ -71,6 +19,9 @@ class Animation:
         if self._timer:
             self._timer.deinit()
             self._timer = None
+            
+    def is_running(self):
+        return self._timer is not None
 
     def start(self):
         if not len(self._leds):
@@ -218,7 +169,7 @@ class WheelAnimation(Animation):
 
     def __init__(self, leds, duration_s = 60.0):
         super().__init__(leds, duration_s)
-        self._h, self._s, self._v = rgb_to_hsv(*self._leds[0].color)
+        self._h, self._s, self._v = utils.rgb_to_hsv(*self._leds[0].color)
 
     def _update(self, _):
         leds = self._leds
@@ -231,10 +182,57 @@ class WheelAnimation(Animation):
         if self._h > 360:
             h = 0
             
-        r, g, b = hsv_to_rgb(self._h, s, v)
+        r, g, b = utils.hsv_to_rgb(self._h, s, v)
 
         for _led in leds:
             _led.set_color((round(r), round(g), round(b)))
+            
+class AudioVisualizer(Animation):
+    
+    def __init__(self, leds, fft_framerate, style):
+        super().__init__(leds)
+        self._colors_queue = deque([], 8)
+        self._state_change_frames_count = _FRAME_RATE // fft_framerate
+        self._last_color = (0, 1, 0)
+        self._last_brightness = 0
+        self._color_transformer_fn = None
+        self._last_updated_ms = 0
+        self._last_fed_ms = 0
+        
+        if style == 'pulse':
+            self._color_transformer_fn = utils.pulse_color
+        
+        
+    def feed(self, amplitudes):
+        color_transformer_fn = self._color_transformer_fn
+        frames_count = self._state_change_frames_count
+        
+        if not color_transformer_fn:
+            return
+        
+        current_color = color_transformer_fn((0, 255, 0), amplitudes)
+        
+        for i in range(frames_count):
+            t = i / (frames_count - 1)
+            interpolated_color = utils.interpolate_color(self._last_color, current_color, t)
+            if i == 0:
+                continue
+            self._colors_queue.appendleft(interpolated_color)
+            
+        self._last_color = current_color
+        
+        if not self.is_running():
+            self.start()
+            
+    def _update(self, _):
+
+        if not len(self._colors_queue):
+            return
+        
+        color = self._colors_queue.pop()
+        
+        for _led in self._leds:
+            _led.set_color(color)
 
     
 def factory(animation, leds):

@@ -3,7 +3,6 @@ import json
 from elastic_queue import Queue
 from mqtt_as import MQTTClient, config
 
-# MQTTClient.DEBUG = True
 _client = None
 _device_config = None
 _main_msg_queue = None
@@ -93,6 +92,10 @@ async def process_broadcast_queue():
 
         await _client.publish(_device_config["topics"]["publish"]["device"], msg, qos = 0)
         print("Broadcasted", msg)
+        
+def disconnect():
+    if _client:
+        _client.close()
 
 async def init(device_config, main_msg_queue, mqtt_state_queue):
     global _client, \
@@ -136,7 +139,10 @@ async def init(device_config, main_msg_queue, mqtt_state_queue):
             if _initial_connection_establed:
                 asyncio.create_task(process_broadcast_queue())
         except BaseException as e:
+            if client:
+                client.close()
             print("Connection error:", e)
+            await asyncio.sleep_ms(1000)
 
     print("MQTT initialized")
 
