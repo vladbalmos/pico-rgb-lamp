@@ -2,8 +2,7 @@ import gc
 import sys
 import time
 import json
-import asyncio
-import network
+import uasyncio as asyncio
 from machine import Pin, freq
 from elastic_queue import Queue
 from led import LED
@@ -133,12 +132,12 @@ async def main():
         if elapsed_ms > 5000:
             last_gc_ms = now_ms
             print("RAM free %d alloc %d. GC Duration %d"  % (gc.mem_free(), gc.mem_alloc(), gc_duration_ms))
-        await asyncio.sleep_ms(_TIMEOUT_MS) # type: ignore
+        await asyncio.sleep_ms(_TIMEOUT_MS)
 
-def handle_exception(loop, context):
+def handle_exception(_, context):
     print('Global handler')
-    sys.print_exception(context["exception"])
-    sys.exit()  # Drastic - loop.stop() does not work when used this way 
+    sys.print_exception(context["exception"]) # type: ignore
+    sys.exit()
 
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()

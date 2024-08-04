@@ -1,4 +1,4 @@
-import asyncio
+import uasyncio as asyncio
 import json
 from elastic_queue import Queue
 from mqtt_as import MQTTClient, config

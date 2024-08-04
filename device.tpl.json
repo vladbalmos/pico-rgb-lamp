@@ -57,6 +57,14 @@
             }
         },
         {
+            "name": "Enable audio visualizer",
+            "id": "enable_audio_visualizer",
+            "schema": {
+                "type": "boolean",
+                "default": false
+            }
+        },
+        {
             "name": "Animation",
             "id": "animation",
             "schema": {
@@ -66,8 +74,7 @@
                     "off",
                     "breathe",
                     "wheel",
-                    "rainbow",
-                    "audio visualizer"
+                    "rainbow"
                 ],
                 "default": "off"
             }

@@ -1,9 +1,7 @@
 import gc
-import socket
-import select
 import time
 import struct
-import asyncio
+import uasyncio as asyncio
 from elastic_queue import Queue
 
 class Client:
@@ -11,6 +9,7 @@ class Client:
     def __init__(self, reader, writer):
         self._reader = reader
         self._writer = writer
+        self.disconnected = False
 
         self.last_read_duration_ms = 0
         self.last_sample_time_ms = 0
@@ -33,8 +32,8 @@ class Client:
         await self._read_data(self._config_buf)
         await self._acknowledge()
         
-        samplerate = struct.unpack("!b", self._config_buf[0:1])[0] # type: ignore
-        frequency_bands_count = struct.unpack("!b", self._config_buf[1:2])[0] # type: ignore
+        samplerate = struct.unpack("!b", self._config_buf[0:1])[0]
+        frequency_bands_count = struct.unpack("!b", self._config_buf[1:2])[0]
 
         frames_count = 1
         buffer_size = frames_count * frequency_bands_count
@@ -57,7 +56,7 @@ class Client:
         
         now_ms = time.ticks_ms()
         while bytes_read < len(buf):
-            count = await self._reader.readinto(buf_view[bytes_read:]) # type: ignore
+            count = await self._reader.readinto(buf_view[bytes_read:])
             bytes_read += count
 
         self.last_read_duration_ms = time.ticks_diff(time.ticks_ms(), now_ms)
@@ -85,9 +84,10 @@ class Client:
             self._data_buf = None
             self._config_buf = None
             self._reader = None
-            self._writer.close() # type: ignore
-            await self._writer.wait_closed() # type: ignore
+            self._writer.close()
+            await self._writer.wait_closed()
             self._writer = None
+            self.disconnected = True
         except:
             pass
 
@@ -108,14 +108,23 @@ async def stop_task(task):
     except asyncio.CancelledError:
         pass
 
-@micropython.native
 async def render(queue, config, device):
     while True:
         amplitudes = await queue.get()
         device.process_amplitudes(amplitudes, config['samplerate'])
+        
+async def disconnect(client, render_task):
+    if render_task:
+        await stop_task(render_task)
+        
+    if not client:
+        return    
+
+    await client.close()
+    gc.collect()
+    
 
 async def run(host, port, device):
-
     render_task = None
     client = None
     
@@ -126,7 +135,7 @@ async def run(host, port, device):
     try:
         while True:
             try:
-                if client is None:
+                if client is None or client.disconnected:
                     try:
                         client = await connect(host, port)
                     except Exception as e:
@@ -134,43 +143,25 @@ async def run(host, port, device):
                         await asyncio.sleep_ms(1000)
                         continue
 
+                    print("Connected to FFT server")
                     render_task = asyncio.create_task(render(fft_queue, client.config, device))
 
                 try:
                     fft_values = await client.read_fft_data()
+                    fft_queue.put_nowait(fft_values)
                 except Exception as e:
                     print("Read error", e)
-                    await stop_task(render_task)
-                    render_task = None
-                    await client.close()
-                    client = None
-                    gc.collect()
-                    await asyncio.sleep_ms(1000) # type: ignore
+                    await disconnect(client, render_task)
+                    await asyncio.sleep_ms(1000)
                     continue
                 
-                frames_count = client.config['frames_count']
-                frame_size = client.config['frequency_bands_count']
-                for i in range(0, frames_count):
-                    frame = fft_values[i * frame_size:(i + 1) * frame_size] 
-                    fft_queue.put_nowait(frame)
-                
-                await asyncio.sleep_ms(10) # type: ignore
+                await asyncio.sleep_ms(10)
 
             except OSError as e:
-                if client is not None:
-                    await stop_task(render_task)
-                    render_task = None
-                    await client.close()
-                    client = None
-                    gc.collect()
-                await asyncio.sleep_ms(1000) # type: ignore
+                await disconnect(client, render_task)
+                await asyncio.sleep_ms(1000)
                 print("Caught exception", e)
 
     except asyncio.CancelledError:
-        if client:
-            await stop_task(render_task)
-            render_task = None
-            await client.close()
-            client = None
-        gc.collect()
+        await disconnect(client, render_task)
         print("Cancelled")
