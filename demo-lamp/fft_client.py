@@ -42,18 +42,18 @@ class FFTClient:
         data = await self._read_data(CONFIG_MSG_SIZE)
         await self._acknowledge()
         
-        sample_rate = struct.unpack("!b", data[0:1])[0]
+        samplerate = struct.unpack("!b", data[0:1])[0]
         frequency_bands_count = struct.unpack("!b", data[1:2])[0]
 
         frames_count = 1
         buffer_size = frames_count * frequency_bands_count * struct.calcsize('!f')
 
         config = {}
-        config['samplerate'] = sample_rate # FFT sample rate in samples/s
+        config['samplerate'] = samplerate # FFT sample rate in samples/s
         config['frames_count'] = frames_count # Hardcoded to 1
         config['frequency_bands_count'] = frequency_bands_count # Number of frequency bands. For the range see src/fft.py
         config['buffer_size'] = buffer_size # The size of each subsequent data message
-        config['period_ms'] = 1000 // sample_rate # The period of each data message in ms
+        config['period_ms'] = 1000 // samplerate # The period of each data message in ms
         config['fft_unpack_fmt'] = f"!{frequency_bands_count}f" # The format for unpacking the binary data 
         config['buffer_length_ms'] = frames_count * config['period_ms'] # The length of each audio sampled analized in ms
         

@@ -6,9 +6,6 @@ import struct
 import asyncio
 from elastic_queue import Queue
 
-class ClientError(Exception):
-    pass
-
 class Client:
 
     def __init__(self, reader, writer):
@@ -16,15 +13,27 @@ class Client:
         self._writer = writer
 
         self.last_read_duration_ms = 0
+        self.last_sample_time_ms = 0
+        self.last_sample_tstamp = 0
 
         self._config_buf = bytearray(struct.calcsize("!bb"))
         self._data_buf = bytearray(0)
         self.config = {}
         
+    async def _acknowledge(self):
+        '''
+        Acknowledge the receipt of data
+        Send a single byte back so that the ACK packet is sent as quickly as possible
+        to prevent delaying the next data message
+        '''
+        self._writer.write(b'1')    
+        await self._writer.drain()
+
     async def init_config(self):
         await self._read_data(self._config_buf)
+        await self._acknowledge()
         
-        framerate = struct.unpack("!b", self._config_buf[0:1])[0] # type: ignore
+        samplerate = struct.unpack("!b", self._config_buf[0:1])[0] # type: ignore
         frequency_bands_count = struct.unpack("!b", self._config_buf[1:2])[0] # type: ignore
 
         frames_count = 1
@@ -32,11 +41,11 @@ class Client:
         self._data_buf = bytearray(buffer_size * struct.calcsize("!f"))
 
         config = {}
-        config['framerate'] = framerate
+        config['samplerate'] = samplerate
         config['frames_count'] = frames_count
         config['frequency_bands_count'] = frequency_bands_count
         config['buffer_size'] = buffer_size
-        config['period_ms'] = 1000 // framerate
+        config['period_ms'] = 1000 // samplerate
         config['fft_unpack_fmt'] = f"!{buffer_size}f"
         config['buffer_length_ms'] = frames_count * config['period_ms']
         
@@ -47,24 +56,30 @@ class Client:
         bytes_read = 0
         buf_view = memoryview(buf)
         
-        start_ms = time.ticks_ms()
+        now_ms = time.ticks_ms()
         while bytes_read < len(buf):
             count = await self._reader.readinto(buf_view[bytes_read:]) # type: ignore
             bytes_read += count
 
-        self.last_read_duration_ms = time.ticks_diff(time.ticks_ms(), start_ms)
-        self._writer.write(b'1')
-        await self._writer.drain() # type: ignore
+        self.last_read_duration_ms = time.ticks_diff(time.ticks_ms(), now_ms)
         
     @micropython.native
-    async def read_fft_data(self):
-        start_ms = time.ticks_ms()
+    async def read_fft_data(self, timeout=0.5):
+        now_ms = time.ticks_ms()
+        if self.last_sample_tstamp > 0:
+            self.last_sample_time_ms = time.ticks_diff(now_ms, self.last_sample_tstamp)
+            
+        self.last_sample_tstamp = now_ms
+
         fft_data = None
 
         await self._read_data(self._data_buf)
+        # await asyncio.wait_for(self._read_data(self._data_buf), timeout=timeout)
+        await self._acknowledge()
+
         fft_data = struct.unpack(self.config["fft_unpack_fmt"], self._data_buf)
 
-        self.last_read_duration_ms = time.ticks_diff(time.ticks_ms(), start_ms)
+        self.last_read_duration_ms = time.ticks_diff(time.ticks_ms(), now_ms)
         return fft_data
         
     async def close(self):
@@ -82,7 +97,11 @@ class Client:
 async def connect(host, port):
     reader, writer = await asyncio.open_connection(host, port)
     client = Client(reader, writer)
-    await client.init_config()
+    try:
+        await asyncio.wait_for(client.init_config(), timeout=1)
+    except asyncio.TimeoutError:
+        await client.close()
+        raise
     return client
 
 async def stop_task(task):
@@ -102,7 +121,7 @@ async def render(queue, config, device):
         # elapsed_ms = time.ticks_diff(now_ms, last_frame_ms)
         # last_frame_ms = now_ms
         
-        device.process_amplitudes(amplitudes, config['framerate'])
+        device.process_amplitudes(amplitudes, config['samplerate'])
 
 async def run(host, port, device):
 
@@ -113,34 +132,31 @@ async def run(host, port, device):
     fft_values = None
     fft_queue = Queue(1)
     
-    dropped_frames_count = 0
-    count = 0
-    
     try:
         while True:
             try:
                 if client is None:
-                    client = await connect(host, port)
+                    try:
+                        client = await connect(host, port)
+                    except Exception as e:
+                        print("Connection error", e)
+                        await asyncio.sleep_ms(1000)
+                        continue
+
                     render_task = asyncio.create_task(render(fft_queue, client.config, device))
 
                 try:
                     fft_values = await client.read_fft_data()
-                except ClientError as e:
+                except asyncio.TimeoutError as e:
+                    continue
+                except Exception as e:
                     print("Read error", e)
                     await stop_task(render_task)
                     render_task = None
                     await client.close()
                     client = None
                     gc.collect()
-                    await asyncio.sleep_ms(30) # type: ignore
-                    continue
-                
-                # TODO: ocassionally drop frames to prevent out of sync issues
-                # TODO: reconnect strategy
-                
-                if dropped_frames_count < 50:
-                    dropped_frames_count += 1
-                    await asyncio.sleep_ms(30) # type: ignore
+                    await asyncio.sleep_ms(1000) # type: ignore
                     continue
                 
                 frames_count = client.config['frames_count']
@@ -149,18 +165,16 @@ async def run(host, port, device):
                     frame = fft_values[i * frame_size:(i + 1) * frame_size] 
                     fft_queue.put_nowait(frame)
                 
-                await asyncio.sleep_ms(client.config['buffer_length_ms'] - 10) # type: ignore
-                # await asyncio.sleep_ms(client.config['buffer_length_ms'] - 6) # type: ignore
+                await asyncio.sleep_ms(10) # type: ignore
 
-            except (ClientError, OSError) as e:
+            except OSError as e:
                 if client is not None:
                     await stop_task(render_task)
                     render_task = None
                     await client.close()
                     client = None
                     gc.collect()
-                await asyncio.sleep_ms(100) # type: ignore
-                dropped_frames_count = 0
+                await asyncio.sleep_ms(1000) # type: ignore
                 print("Caught exception", e)
 
     except asyncio.CancelledError:

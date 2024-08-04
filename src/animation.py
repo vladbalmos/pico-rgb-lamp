@@ -189,10 +189,10 @@ class WheelAnimation(Animation):
             
 class AudioVisualizer(Animation):
     
-    def __init__(self, leds, fft_framerate, style):
+    def __init__(self, leds, samplerate, style):
         super().__init__(leds)
         self._colors_queue = deque([], 8)
-        self._state_change_frames_count = _FRAME_RATE // fft_framerate
+        self._state_change_frames_count = _FRAME_RATE // samplerate
         self._last_color = (0, 0, 0)
         self._last_brightness = 0
         self._color_transformer_fn = None

@@ -73,8 +73,8 @@ def config(key, value = None):
     
     raise ValueError("Invalid arguments")
 
-def process_amplitudes(amplitudes, fft_framerate):
-    _lamp.dance(amplitudes, fft_framerate) # type: ignore
+def process_amplitudes(amplitudes, fft_samplerate):
+    _lamp.dance(amplitudes, fft_samplerate) # type: ignore
 
 def init(lamp, default_state):
     global _lamp, _state

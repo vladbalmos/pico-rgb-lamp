@@ -1,4 +1,5 @@
 import gc
+import sys
 import time
 import json
 import asyncio
@@ -134,10 +135,14 @@ async def main():
             print("RAM free %d alloc %d. GC Duration %d"  % (gc.mem_free(), gc.mem_alloc(), gc_duration_ms))
         await asyncio.sleep_ms(_TIMEOUT_MS) # type: ignore
 
+def handle_exception(loop, context):
+    print('Global handler')
+    sys.print_exception(context["exception"])
+    sys.exit()  # Drastic - loop.stop() does not work when used this way 
+
 if __name__ == '__main__':
-    print(freq())
-    freq(125000000)
-    print(freq())
+    loop = asyncio.get_event_loop()
+    loop.set_exception_handler(handle_exception)
     asyncio.run(main())
     mqtt.disconnect()
     asyncio.new_event_loop()
