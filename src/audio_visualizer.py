@@ -51,7 +51,6 @@ class Client:
         
         self.config = config
         
-    @micropython.native
     async def _read_data(self, buf):
         bytes_read = 0
         buf_view = memoryview(buf)
@@ -63,7 +62,6 @@ class Client:
 
         self.last_read_duration_ms = time.ticks_diff(time.ticks_ms(), now_ms)
         
-    @micropython.native
     async def read_fft_data(self):
         now_ms = time.ticks_ms()
         if self.last_sample_tstamp > 0:
@@ -73,7 +71,7 @@ class Client:
 
         fft_data = None
 
-        await self._read_data(self._data_buf)
+        await asyncio.wait_for(self._read_data(self._data_buf), timeout=0.5)
         await self._acknowledge()
 
         fft_data = struct.unpack(self.config["fft_unpack_fmt"], self._data_buf)
@@ -140,8 +138,6 @@ async def run(host, port, device):
 
                 try:
                     fft_values = await client.read_fft_data()
-                except asyncio.TimeoutError as e:
-                    continue
                 except Exception as e:
                     print("Read error", e)
                     await stop_task(render_task)
