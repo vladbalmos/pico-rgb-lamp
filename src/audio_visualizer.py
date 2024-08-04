@@ -64,7 +64,7 @@ class Client:
         self.last_read_duration_ms = time.ticks_diff(time.ticks_ms(), now_ms)
         
     @micropython.native
-    async def read_fft_data(self, timeout=0.5):
+    async def read_fft_data(self):
         now_ms = time.ticks_ms()
         if self.last_sample_tstamp > 0:
             self.last_sample_time_ms = time.ticks_diff(now_ms, self.last_sample_tstamp)
@@ -74,7 +74,6 @@ class Client:
         fft_data = None
 
         await self._read_data(self._data_buf)
-        # await asyncio.wait_for(self._read_data(self._data_buf), timeout=timeout)
         await self._acknowledge()
 
         fft_data = struct.unpack(self.config["fft_unpack_fmt"], self._data_buf)
@@ -113,14 +112,8 @@ async def stop_task(task):
 
 @micropython.native
 async def render(queue, config, device):
-    # last_frame_ms = 0
     while True:
-        # now_ms = time.ticks_ms()
         amplitudes = await queue.get()
-        
-        # elapsed_ms = time.ticks_diff(now_ms, last_frame_ms)
-        # last_frame_ms = now_ms
-        
         device.process_amplitudes(amplitudes, config['samplerate'])
 
 async def run(host, port, device):
