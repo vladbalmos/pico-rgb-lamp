@@ -20,6 +20,7 @@ class Lamp:
                 result.append(('change_led' + str(i) + '_color', value))
             
             result.append(('animation', 'off'))
+            result.append(('enable_audio_visualizer', 0))
             return result
         
         if feature_id.startswith("change_led") and feature_id.endswith("_color"):
@@ -28,11 +29,16 @@ class Lamp:
             except ValueError:
                 return
             self.change_led_color(led_idx, value)
-            return [(feature_id, value), ('animation', 'off')]
+            return [(feature_id, value), ('animation', 'off'), ('enable_audio_visualizer', 0)]
         
         if feature_id == "animation":
             self.set_animation(value)
-            return [(feature_id, value)]
+            return [(feature_id, value), ('enable_audio_visualizer', 0)]
+        
+        if feature_id == "enable_audio_visualizer":
+            self.set_animation('off')
+            return [(feature_id, value), ('animation', "off")]
+            
         
         return [(feature_id, value)]
     

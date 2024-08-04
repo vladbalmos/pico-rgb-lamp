@@ -14,13 +14,19 @@ import mqtt
 _TIMEOUT_MS = const(500)
 
 def lighting_message(msg):
+    if 'request' not in msg:
+        return False
+    
+    if msg['request'] != 'anouncement':
+        return False
+
     if 'sender' not in msg:
         return False
     
-    if msg['sender'] != 'fft-streamer':
+    if msg['sender'] != 'fft_server':
         return False
     
-    if 'payload' not in msg:
+    if 'message' not in msg:
         return False
     
     return True
@@ -51,15 +57,31 @@ async def handle_messages(msg_queue, device):
     audio_visualizer_task = None
     while True:
         msg = await msg_queue.get()
+        print("Received message")
+        print(msg)
         
         if valid_feature_state_update_request(msg):
             updates = device.update_features(msg["payload"])
             
-            if len(updates) == 1 and updates[0][0] == 'animation' and updates[0][1] == 'audio visualizer':
+            if audio_visualizer_task is not None:
+                audio_visualizer_task.cancel()
+                audio_visualizer_task = None
+
+            for feature_update in updates:
+                feature, value = feature_update
+                
+                if feature != 'enable_audio_visualizer':
+                    continue
+                
+                if value != 1:
+                    continue
+
                 fft_stream_host = device.config("fft_stream_host")
                 fft_stream_port = device.config("fft_stream_port")
-                
+                print(fft_stream_host, fft_stream_port)
+
                 if type(fft_stream_host) is not str or len(fft_stream_host) == 0 or type(fft_stream_port) is not int or fft_stream_port < 1:
+                    print("Invalid FFT Stream configuration")
                     continue
                 
                 if audio_visualizer_task is not None:
@@ -67,10 +89,6 @@ async def handle_messages(msg_queue, device):
                     audio_visualizer_task = None
                     
                 audio_visualizer_task = asyncio.create_task(audio_visualizer.run(fft_stream_host, fft_stream_port, device))
-            else:
-                if audio_visualizer_task is not None:
-                    audio_visualizer_task.cancel()
-                    audio_visualizer_task = None
 
             for (feature_id, new_value) in updates:
                 if feature_id is None:
@@ -79,13 +97,14 @@ async def handle_messages(msg_queue, device):
 
                     
         if lighting_message(msg):
-            payload = msg['payload']
-            if "event" in payload and payload["event"] == "announcement" and "data" in payload:
-                data = payload["data"]
+            message = msg['message']
+
+            if "address" in message:
+                address = message["address"]
                 
-                if "host" in data and "port" in data:
-                    host = data["host"]
-                    port = data["port"]
+                if "host" in address and "port" in address:
+                    host = address["host"]
+                    port = address["port"]
                     print(f"FFT Stream is at {host}:{port}")
                     device.config({"fft_stream_host": host, "fft_stream_port": port})
                     continue

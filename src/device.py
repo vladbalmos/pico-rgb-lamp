@@ -22,16 +22,6 @@ def persist_state(_ = None):
     except Exception as e:
         print("Failed to persist state", e)
         
-def schedule_state_persist():
-    global _persist_state_timer
-    if _persist_state_timer:
-        _persist_state_timer.deinit()
-        _persist_state_timer = None
-
-    _persist_state_timer = Timer(-1)
-    _persist_state_timer.init(mode=Timer.ONE_SHOT, period=500, callback=persist_state)
-
-
 def update_features(data):
     if _lamp is None:
         return
@@ -45,7 +35,6 @@ def update_features(data):
                 f["value"] = value
                 break
 
-    # schedule_state_persist()
     persist_state()
     return result
 
@@ -55,7 +44,6 @@ def config(key, value = None):
             _state["config"] = {}
         _state["config"].update(key)
         persist_state()
-        # schedule_state_persist()
         return
     
     if type(key) is str and value is not None:
@@ -63,7 +51,6 @@ def config(key, value = None):
             _state["config"] = {}
         _state["config"][key] = value
         persist_state()
-        # schedule_state_persist()
         return
     
     if type(key) is str:

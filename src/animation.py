@@ -212,7 +212,7 @@ class AudioVisualizer(Animation):
         if not color_transformer_fn:
             return
         
-        current_color = color_transformer_fn((0, 255, 0), amplitudes)
+        current_color = color_transformer_fn(self._leds[0].color, amplitudes)
         
         for i in range(frames_count):
             t = i / (frames_count - 1)

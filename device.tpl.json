@@ -65,6 +65,18 @@
             }
         },
         {
+            "name": "Audio visualizer configuration",
+            "id": "audio_visualizer_config",
+            "depends_on": "enable_audio_visualizer",
+            "schema": {
+                "type": "config",
+                "default": {
+                    "prop1": 0,
+                    "prop2": 0
+                }
+            }
+        },
+        {
             "name": "Animation",
             "id": "animation",
             "schema": {
