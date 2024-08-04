@@ -193,7 +193,7 @@ class AudioVisualizer(Animation):
         super().__init__(leds)
         self._colors_queue = deque([], 8)
         self._state_change_frames_count = _FRAME_RATE // fft_framerate
-        self._last_color = (0, 1, 0)
+        self._last_color = (0, 0, 0)
         self._last_brightness = 0
         self._color_transformer_fn = None
         self._last_updated_ms = 0
@@ -201,6 +201,8 @@ class AudioVisualizer(Animation):
         
         if style == 'pulse':
             self._color_transformer_fn = utils.pulse_color
+        if style == 'pulse_rgb':
+            self._color_transformer_fn = utils.pulse_rgb
         
         
     def feed(self, amplitudes):
@@ -215,8 +217,6 @@ class AudioVisualizer(Animation):
         for i in range(frames_count):
             t = i / (frames_count - 1)
             interpolated_color = utils.interpolate_color(self._last_color, current_color, t)
-            if i == 0:
-                continue
             self._colors_queue.appendleft(interpolated_color)
             
         self._last_color = current_color

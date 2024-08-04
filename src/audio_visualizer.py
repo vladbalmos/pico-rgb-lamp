@@ -53,6 +53,8 @@ class Client:
             bytes_read += count
 
         self.last_read_duration_ms = time.ticks_diff(time.ticks_ms(), start_ms)
+        self._writer.write(b'1')
+        await self._writer.drain() # type: ignore
         
     @micropython.native
     async def read_fft_data(self):
@@ -63,8 +65,6 @@ class Client:
         fft_data = struct.unpack(self.config["fft_unpack_fmt"], self._data_buf)
 
         self.last_read_duration_ms = time.ticks_diff(time.ticks_ms(), start_ms)
-        self._writer.write(b'1')
-        await self._writer.drain() # type: ignore
         return fft_data
         
     async def close(self):
@@ -111,7 +111,7 @@ async def run(host, port, device):
     
     gc.collect()
     fft_values = None
-    fft_queue = Queue(8)
+    fft_queue = Queue(1)
     
     dropped_frames_count = 0
     count = 0
@@ -149,7 +149,7 @@ async def run(host, port, device):
                     frame = fft_values[i * frame_size:(i + 1) * frame_size] 
                     fft_queue.put_nowait(frame)
                 
-                # await asyncio.sleep_ms(client.config['buffer_length_ms'] - 6) # type: ignore
+                await asyncio.sleep_ms(client.config['buffer_length_ms'] - 10) # type: ignore
                 # await asyncio.sleep_ms(client.config['buffer_length_ms'] - 6) # type: ignore
 
             except (ClientError, OSError) as e:

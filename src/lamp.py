@@ -51,7 +51,7 @@ class Lamp:
                 self._animation.stop()
                 gc.collect()
 
-            self._animation = animation.AudioVisualizer(self._leds, fft_framerate, "pulse")
+            self._animation = animation.AudioVisualizer(self._leds, fft_framerate, "pulse_rgb")
         self._animation.feed(amplitudes)
 
     @micropython.native

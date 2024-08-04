@@ -1,5 +1,13 @@
 import math
 
+if "micropython" not in globals():
+    class Micropython:
+        
+        def native(self, func):
+            return func
+        
+    micropython = Micropython()
+
 @micropython.native
 def rgb_to_hsv(r, g, b):
     r, g, b = r / 255.0, g / 255.0, b / 255.0
@@ -85,44 +93,48 @@ def loudness_to_brightness(loudness):
     brightness = int(brightness_normalized * 255)
     return brightness
 
-def loudness_to_brightness_linear(loudness):
-    # if loudness >= -1.5:
-    #     return 255
-    
-    # if loudness >= -3:
-    #     return 100
-    
-    # if loudness >= -6:
-    #     return 75
-
-    # if loudness >= -12:
-    #     return 50
-
-    # if loudness >= -15:
-    #     return 25
-
-    # if loudness >= -18:
-    #     return 10
-
-    # if loudness >= -30:
-    #     return 5
-    
-    # return 0
-    
-    dbfs_min = -60
-    dbfs_max = 0
-    
-    dbfs = max(min(loudness, dbfs_max), dbfs_min)
-    brightness = int(((dbfs - dbfs_min) / (dbfs_max - dbfs_min)) * 255)
-    return brightness
-
 @micropython.native
 def pulse_color(color, amplitudes):
-    # loudness = sum(amplitudes) / len(amplitudes)
-    # factor = loudness_to_brightness(loudness)
-    factor = loudness_to_brightness(amplitudes[0])
-    
+    '''
+        Loudness options:
+        - 1. amplitude at a specific frequency
+        - 2. max amplitude across all frequencies
+        - 3. average amplitude across low, medium or high frequencies
+        - 4. max(low)
+        - 5. max(medium)
+        - 6. max(high)
+    '''
+    #1
+    # loudness = amplitudes[0]
+
+    #2
+    # loudness = max(amplitudes)
+
+    # 3. avg(low)
+    # loudness = sum(amplitudes[0:3]) / 3
+    # 3. avg(medium)
+    # loudness = sum(amplitudes[3:7]) / 4
+    # 3. avg(high)
+    # loudness = sum(amplitudes[7:]) / 3
+
+    # 4. max(low)
+    # loudness = max(amplitudes[0:3])
+    # 4. max(med)
+    loudness = max(amplitudes[3:7])
+
+    factor = loudness_to_brightness(loudness)
     r, g, b = [int(c * factor / 255) for c in color]
     
     return (r, g, b)
     
+@micropython.native
+def pulse_rgb(_, amplitudes):
+    # red = loudness_to_brightness(sum(amplitudes[0:3]) / 3)
+    # green = loudness_to_brightness(sum(amplitudes[3:7]) / 4)
+    # blue = loudness_to_brightness(sum(amplitudes[7:]) / 3)
+
+    red = loudness_to_brightness(max(amplitudes[0:3]))
+    green = loudness_to_brightness(min(amplitudes[3:7]))
+    blue = loudness_to_brightness(sum(amplitudes[7:]) / 3)
+    
+    return (red, green, blue)
