@@ -67,12 +67,73 @@
         {
             "name": "Audio visualizer configuration",
             "id": "audio_visualizer_config",
-            "depends_on": "enable_audio_visualizer",
             "schema": {
-                "type": "config",
+                "type": "json",
                 "default": {
-                    "prop1": 0,
-                    "prop2": 0
+                    "dbfs": {
+                        "min": -27,
+                        "max": 0,
+                        "exponent": 2
+                    },
+                    "loudness_functions": [
+                        {
+                            "name": "random_frequency",
+                            "eval": "amplitudes[random.randint(0, len(amplitudes) - 1)]"
+                        },
+                        {
+                            "name": "sum",
+                            "eval": "sum(amplitudes)"
+                        },
+                        {
+                            "name": "max",
+                            "eval": "max(amplitudes)"
+                        },
+                        {
+                            "name": "min",
+                            "eval": "min(amplitudes)"
+                        },
+                        {
+                            "name": "avg",
+                            "eval": "sum(amplitudes) / len(amplitudes)"
+                        }
+                    ],
+                    "styles": [
+                        {
+                            "name": "rgb_to_max_base_min_med_avg_high",
+                            "channels": {
+                                "red": [
+                                    "max",
+                                    "amplitudes[0:3]"
+                                ],
+                                "green": [
+                                    "min",
+                                    "amplitudes[3:7]"
+                                ],
+                                "blue": [
+                                    "avg",
+                                    "amplitudes[7:]"
+                                ]
+                            }
+                        },
+                        {
+                            "name": "rgb_to_rand_base_med_high",
+                            "channels": {
+                                "red": [
+                                    "rand_loudness",
+                                    "amplitudes[0:3]"
+                                ],
+                                "green": [
+                                    "rand_loudness",
+                                    "amplitudes[3:7]"
+                                ],
+                                "blue": [
+                                    "rand_loudness",
+                                    "amplitudes[7:]"
+                                ]
+                            }
+                        }
+                    ],
+                    "active_style": "rgb_to_max_base_min_med_avg_high"
                 }
             }
         },

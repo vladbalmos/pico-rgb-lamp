@@ -1,8 +1,7 @@
-import time
-import led
 from collections import deque
 import animation_utils as utils
 from machine import Timer
+import random
 
 _FRAME_RATE = const(60)
 
@@ -189,7 +188,7 @@ class WheelAnimation(Animation):
             
 class AudioVisualizer(Animation):
     
-    def __init__(self, leds, samplerate, style):
+    def __init__(self, leds, samplerate, animation_config):
         super().__init__(leds)
         self._colors_queue = deque([], 8)
         self._state_change_frames_count = _FRAME_RATE // samplerate
@@ -198,21 +197,67 @@ class AudioVisualizer(Animation):
         self._color_transformer_fn = None
         self._last_updated_ms = 0
         self._last_fed_ms = 0
+        self._animation_config = self._compile_config(animation_config)
+        self._current_style = None
         
-        if style == 'pulse':
-            self._color_transformer_fn = utils.pulse_color
-        if style == 'pulse_rgb':
-            self._color_transformer_fn = utils.pulse_rgb
+    def _compile_config(self, animation_config):
+        config = {
+            "dbfs": animation_config["dbfs"],
+            "loudness_functions": {},
+            "styles": {},
+            "active_style": animation_config["active_style"]
+        }
+        for fn in animation_config["loudness_functions"]:
+            name = fn["name"]
+            code = compile(fn["eval"], "<string>", "eval")
+            config["loudness_functions"][name] = code
+            
+        for style in animation_config["styles"]:
+            name = style["name"]
+            channel_functions = {}
+            for channel in style["channels"]:
+                fn_name, arg = style["channels"][channel]
+                code = f"self._get_loudness('{fn_name}', {arg})"
+                channel_functions[channel] = compile(code, "<string>", "eval")
+            config["styles"][name] = channel_functions
+            
+        return config
+    
+    def _get_loudness(self, fn_name, amplitudes):
+        if fn_name == "rand_loudness":
+            fn_name = random.choice(list(self._animation_config["loudness_functions"].keys()))
+            
+        # TODO: pulse color wheel
+        # TODO: pulse rogvaiv
+        amplitude = eval(self._animation_config["loudness_functions"][fn_name], {"amplitudes": amplitudes, "random": random})
+        return amplitude
+    
+    def _color_transformer(self, color, amplitudes):
+        if self._current_style is None:
+            current_style = self._animation_config["active_style"]
+            for style in self._animation_config["styles"]:
+                if style == current_style:
+                    self._current_style = self._animation_config["styles"][style]
+                    break
+                
+        if self._current_style is None:
+            return color
         
+        r_amplitude = eval(self._current_style["red"], {"self": self, "amplitudes": amplitudes})
+        g_amplitude = eval(self._current_style["green"], {"self": self, "amplitudes": amplitudes})
+        b_amplitude = eval(self._current_style["blue"], {"self": self, "amplitudes": amplitudes})
+        
+        red = utils.loudness_to_brightness(r_amplitude, self._animation_config["dbfs"])
+        green = utils.loudness_to_brightness(g_amplitude, self._animation_config["dbfs"])
+        blue = utils.loudness_to_brightness(b_amplitude, self._animation_config["dbfs"])
+        
+        return (red, green, blue)
         
     def feed(self, amplitudes):
-        color_transformer_fn = self._color_transformer_fn
         frames_count = self._state_change_frames_count
         
-        if not color_transformer_fn:
-            return
-        
-        current_color = color_transformer_fn(self._leds[0].color, amplitudes)
+        current_color = self._color_transformer(self._leds[0].color, amplitudes)
+        # current_color = utils.pulse_rgb(self._leds[0].color, amplitudes)
         
         for i in range(frames_count):
             t = i / (frames_count - 1)

@@ -51,13 +51,13 @@ class Lamp:
         self._animation.start()
         
     @micropython.native
-    def dance(self, amplitudes, samplerate):
+    def dance(self, amplitudes, samplerate, config):
         if not self._animation or not isinstance(self._animation, animation.AudioVisualizer):
             if self._animation:
                 self._animation.stop()
                 gc.collect()
 
-            self._animation = animation.AudioVisualizer(self._leds, samplerate, "pulse_rgb")
+            self._animation = animation.AudioVisualizer(self._leds, samplerate, config)
         self._animation.feed(amplitudes)
 
     @micropython.native

@@ -1,5 +1,6 @@
 import gc
 import time
+import json
 import struct
 import uasyncio as asyncio
 from elastic_queue import Queue
@@ -109,9 +110,14 @@ async def stop_task(task):
         pass
 
 async def render(queue, config, device):
+    try:
+        visualizer_config = json.loads(device.get("audio_visualizer_config"))
+    except ValueError:
+        visualizer_config = {}
+    
     while True:
         amplitudes = await queue.get()
-        device.process_amplitudes(amplitudes, config['samplerate'])
+        device.process_amplitudes(amplitudes, config['samplerate'], visualizer_config)
         
 async def disconnect(client, render_task):
     if render_task:

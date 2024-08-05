@@ -60,8 +60,14 @@ def config(key, value = None):
     
     raise ValueError("Invalid arguments")
 
-def process_amplitudes(amplitudes, fft_samplerate):
-    _lamp.dance(amplitudes, fft_samplerate)
+def get(feature_id):
+    for f in _state["features"]:
+        if f["id"] == feature_id:
+            return f["value"] if "value" in f else f["schema"]["default"]
+    return None
+
+def process_amplitudes(amplitudes, fft_samplerate, config):
+    _lamp.dance(amplitudes, fft_samplerate, config)
 
 def init(lamp, default_state):
     global _lamp, _state

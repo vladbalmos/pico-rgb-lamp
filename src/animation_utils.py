@@ -1,4 +1,5 @@
 import math
+import random
 
 if "micropython" not in globals():
     class Micropython:
@@ -75,9 +76,15 @@ def interpolate_color(c1, c2, t):
     return tuple(result)
 
 @micropython.native
-def loudness_to_brightness(loudness):
-    dbfs_min = -27
-    dbfs_max = 0
+def loudness_to_brightness(loudness, dbfs = None):
+    if dbfs is None:
+        dbfs_min = -27
+        dbfs_max = 0
+        exponent = 2  # Adjust this exponent to tweak the curve
+    else:
+        dbfs_min = dbfs["min"]
+        dbfs_max = dbfs["max"]
+        exponent = dbfs["exponent"]
     
     # Clamping the loudness to be within the specified range
     dbfs = max(min(loudness, dbfs_max), dbfs_min)
@@ -86,7 +93,6 @@ def loudness_to_brightness(loudness):
     normalized = (dbfs - dbfs_min) / (dbfs_max - dbfs_min)
     
     # Applying an exponential transformation
-    exponent = 2  # Adjust this exponent to tweak the curve
     brightness_normalized = math.pow(normalized, exponent)
     
     # Scaling the normalized brightness to [0, 255]
@@ -94,45 +100,7 @@ def loudness_to_brightness(loudness):
     return brightness
 
 @micropython.native
-def pulse_color(color, amplitudes):
-    '''
-        Loudness options:
-        - 1. amplitude at a specific frequency
-        - 2. max amplitude across all frequencies
-        - 3. average amplitude across low, medium or high frequencies
-        - 4. max(low)
-        - 5. max(medium)
-        - 6. max(high)
-    '''
-    #1
-    # loudness = amplitudes[0]
-
-    #2
-    # loudness = max(amplitudes)
-
-    # 3. avg(low)
-    # loudness = sum(amplitudes[0:3]) / 3
-    # 3. avg(medium)
-    # loudness = sum(amplitudes[3:7]) / 4
-    # 3. avg(high)
-    # loudness = sum(amplitudes[7:]) / 3
-
-    # 4. max(low)
-    # loudness = max(amplitudes[0:3])
-    # 4. max(med)
-    loudness = max(amplitudes[3:7])
-
-    factor = loudness_to_brightness(loudness)
-    r, g, b = [int(c * factor / 255) for c in color]
-    
-    return (r, g, b)
-    
-@micropython.native
 def pulse_rgb(_, amplitudes):
-    # red = loudness_to_brightness(sum(amplitudes[0:3]) / 3)
-    # green = loudness_to_brightness(sum(amplitudes[3:7]) / 4)
-    # blue = loudness_to_brightness(sum(amplitudes[7:]) / 3)
-
     red = loudness_to_brightness(max(amplitudes[0:3]))
     green = loudness_to_brightness(min(amplitudes[3:7]))
     blue = loudness_to_brightness(sum(amplitudes[7:]) / 3)
