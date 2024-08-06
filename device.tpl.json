@@ -5,12 +5,9 @@
     "password": "wifi password",
     "server": "ip or domain of MQTT server",
     "led_pins": [
-        [1, 2, 0],
-        [4, 5, 3],
-        [7, 8, 6],
-        [10, 11, 9]
+        [1, 2, 0]
     ],
-    "invert_pwm_duty_cycle": true,
+    "invert_pwm_duty_cycle": false,
     "config": {
         "fft_stream_host": null,
         "fft_stream_port": null
@@ -19,38 +16,6 @@
         {
             "name": "Change global color",
             "id": "change_global_color",
-            "schema": {
-                "type": "color",
-                "default": "#ff0000"
-            }
-        },
-        {
-            "name": "Change LED 0 color",
-            "id": "change_led0_color",
-            "schema": {
-                "type": "color",
-                "default": "#ff0000"
-            }
-        },
-        {
-            "name": "Change LED 1 color",
-            "id": "change_led1_color",
-            "schema": {
-                "type": "color",
-                "default": "#ff0000"
-            }
-        },
-        {
-            "name": "Change LED 2 color",
-            "id": "change_led2_color",
-            "schema": {
-                "type": "color",
-                "default": "#ff0000"
-            }
-        },
-        {
-            "name": "Change LED 3 color",
-            "id": "change_led3_color",
             "schema": {
                 "type": "color",
                 "default": "#ff0000"

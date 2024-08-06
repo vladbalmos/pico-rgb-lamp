@@ -4,7 +4,7 @@ from machine import PWM
 _MAX_DUTY_CYCLE = const(65535)
 _PWM_FREQ = const(1000)
 
-_RED_MAX = const(240)
+_RED_MAX = const(255)
 _GREEN_MAX = const(255)
 _BLUE_MAX = const(255)
 
@@ -25,10 +25,10 @@ class LED:
         "magenta": (255, 0, 255),
     }
     
-    def __init__(self, red_pin, blue_pin, green_pin, invert_duty_cycle = False) -> None:
+    def __init__(self, red_pin, green_pin, blue_pin, invert_duty_cycle = False) -> None:
         self._red_pin = PWM(red_pin, freq=_PWM_FREQ, duty_u16=_MAX_DUTY_CYCLE)
-        self._green_pin = PWM(blue_pin, freq=_PWM_FREQ, duty_u16=_MAX_DUTY_CYCLE)
-        self._blue_pin = PWM(green_pin, freq=_PWM_FREQ, duty_u16=_MAX_DUTY_CYCLE)
+        self._green_pin = PWM(green_pin, freq=_PWM_FREQ, duty_u16=_MAX_DUTY_CYCLE)
+        self._blue_pin = PWM(blue_pin, freq=_PWM_FREQ, duty_u16=_MAX_DUTY_CYCLE)
         self._invert_duty_cycle = invert_duty_cycle
         self.color = None
         
