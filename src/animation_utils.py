@@ -1,5 +1,4 @@
 import math
-import random
 
 if "micropython" not in globals():
     class Micropython:
