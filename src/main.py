@@ -10,12 +10,10 @@ from lamp import Lamp
 import audio_visualizer
 import device
 import mqtt
+import ui    
 
 _TIMEOUT_MS = const(500)
 
-encoder_pin_a = 3
-encoder_pin_b = 4
-encoder_btn_pin = 5
 def lighting_message(msg):
     if 'request' not in msg:
         return False
@@ -116,6 +114,7 @@ async def handle_mqtt_state_changes(mqtt_state_queue):
     while True:
         state = await mqtt_state_queue.get()
         print("MQTT state", state)
+        
 
 async def main():
     status_led = Pin('LED', Pin.OUT)
@@ -127,18 +126,20 @@ async def main():
     with open("device.json", 'r') as device_config_file:
         contents = device_config_file.read()
         device_config = json.loads(contents)
+        
+    ui.init(msg_queue, device_config)
 
-    for rgb_pins in device_config["led_pins"]:
-        led = LED(Pin(rgb_pins[0]), Pin(rgb_pins[1]), Pin(rgb_pins[2]), invert_duty_cycle = device_config["invert_pwm_duty_cycle"])
-        LEDs.append(led)
+    # for rgb_pins in device_config["led_pins"]:
+        # led = LED(Pin(rgb_pins[0]), Pin(rgb_pins[1]), Pin(rgb_pins[2]), invert_duty_cycle = device_config["invert_pwm_duty_cycle"])
+        # LEDs.append(led)
         
-    lamp = Lamp(LEDs)
+    # lamp = Lamp(LEDs)
     
-    state = device.init(lamp, device_config)
+    # state = device.init(lamp, device_config)
         
-    asyncio.create_task(mqtt.init(state, msg_queue, mqtt_state_queue))
+    # asyncio.create_task(mqtt.init(state, msg_queue, mqtt_state_queue))
     asyncio.create_task(handle_messages(msg_queue, device))
-    asyncio.create_task(handle_mqtt_state_changes(mqtt_state_queue))
+    # asyncio.create_task(handle_mqtt_state_changes(mqtt_state_queue))
     
     last_gc_ms = time.ticks_ms()
     while True:

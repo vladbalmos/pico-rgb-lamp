@@ -1,10 +1,8 @@
 import time
-from machine import Timer
 import json
 
 _lamp = None
 _state = {}
-_persist_state_timer = None
 
 def has_feature(id):
     for f in _state["features"]:

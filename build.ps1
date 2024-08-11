@@ -13,12 +13,30 @@ function copy-settings {
 
 function copy-dependencies {
     Write-Output "Copying dependencies to remote device"
+    # Mqtt lib
     $jsonContent = Get-Content -Path "lib/micropython-mqtt/package.json" -Raw
     $jsonObject = $jsonContent | ConvertFrom-Json
 
     $files = $jsonObject.urls
     $files | ForEach-Object {
         $_[1] = $_[1] -replace "github:peterhinch/", ""
+        $src = "lib/" + $_[1]
+        $dst = ":" + $_[0]
+        mpremote fs cp $src $dst
+    }
+    
+    # rotary encoder lib
+    $jsonContent = Get-Content -Path "lib/micropython-rotary/package.json" -Raw
+    $jsonObject = $jsonContent | ConvertFrom-Json
+
+    $files = $jsonObject.urls
+    $files | ForEach-Object {
+        $_[1] = $_[1] -replace "github:miketeachman/", ""
+        
+        if ($_[1] -eq "micropython-rotary/rotary_irq_esp.py" -or $_[1] -eq "micropython-rotary/rotary_irq_esp32.py") {
+            return
+            
+        }
         $src = "lib/" + $_[1]
         $dst = ":" + $_[0]
         mpremote fs cp $src $dst

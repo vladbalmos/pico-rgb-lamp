@@ -5,8 +5,10 @@
     "password": "wifi password",
     "server": "ip or domain of MQTT server",
     "led_pins": [
-        [1, 2, 0]
+        [0, 1, 2]
     ],
+    "rotary_encoder_pins": [4, 3],
+    "select_switch_pin": 5,
     "invert_pwm_duty_cycle": false,
     "config": {
         "fft_stream_host": null,
