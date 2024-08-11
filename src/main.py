@@ -13,6 +13,9 @@ import mqtt
 
 _TIMEOUT_MS = const(500)
 
+encoder_pin_a = 3
+encoder_pin_b = 4
+encoder_btn_pin = 5
 def lighting_message(msg):
     if 'request' not in msg:
         return False

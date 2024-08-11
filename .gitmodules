@@ -4,3 +4,6 @@
 [submodule "lib/micropython-async"]
 	path = lib/micropython-async
 	url = https://github.com/peterhinch/micropython-async.git
+[submodule "lib/micropython-rotary"]
+	path = lib/micropython-rotary
+	url = https://github.com/miketeachman/micropython-rotary
