@@ -1,4 +1,4 @@
-import time
+import utils
 from machine import PWM
 
 _MAX_DUTY_CYCLE = const(65535)
@@ -12,19 +12,15 @@ _BLUE_MAX = const(255)
 _RED_GREEN_SCALING_FACTOR = const(1.7)
 _RED_BLUE_SCALING_FACTOR = const(2)
 
+if "micropython" not in globals():
+    class Micropython:
+        
+        def native(self, func):
+            return func
+        
+    micropython = Micropython()
 
 class LED:
-    Colors = {
-        "black": (0, 0, 0),
-        "white": (255, 255, 255),
-        "red": (255, 0, 0),
-        "green": (0, 255, 0),
-        "blue": (0, 0, 255),
-        "yellow": (255, 255, 0),
-        "cyan": (0, 255, 255),
-        "magenta": (255, 0, 255),
-    }
-    
     def __init__(self, red_pin, green_pin, blue_pin, invert_duty_cycle = False) -> None:
         self._red_pin = PWM(red_pin, freq=_PWM_FREQ, duty_u16=_MAX_DUTY_CYCLE)
         self._green_pin = PWM(green_pin, freq=_PWM_FREQ, duty_u16=_MAX_DUTY_CYCLE)
@@ -33,47 +29,9 @@ class LED:
         self.color = None
         
     @micropython.native
-    def _convert_color(self, color):
-        now = time.ticks_us()
-        colors = LED.Colors
-        # Convert color to tuple(red, green, blue)
-        # where each color channel is between 0, 255
-        color_tuple = None
-        if isinstance(color, str) and color in colors:
-            color_tuple = colors[color]
-        
-        if not color_tuple and isinstance(color, str) and color.startswith("#"):
-            color = color[1:]
-            if len(color) == 6:
-                try:
-                    color_tuple = tuple(int(color[i:i+2], 16) for i in (0, 2, 4))
-                except ValueError:
-                    pass
-        
-        if not color_tuple and isinstance(color, int):
-            red = (color >> 16) & 0xFF
-            green = (color >> 8) & 0xFF
-            blue = color & 0xFF
-            color_tuple = (red, green, blue)
-            
-        if color_tuple:
-            # Adjust the color values and create a new tuple
-            adjusted_red = color_tuple[0]
-            if adjusted_red > 0:
-                adjusted_green = int(color_tuple[1] / _RED_GREEN_SCALING_FACTOR)
-                adjusted_blue = int(color_tuple[2] / _RED_BLUE_SCALING_FACTOR)
-            else:
-                adjusted_green = color_tuple[1]
-                adjusted_blue = color_tuple[2]
-            color_tuple = (min(_RED_MAX, adjusted_red), min(_GREEN_MAX, adjusted_green), min(_BLUE_MAX, adjusted_blue))
-
-        print(time.ticks_diff(time.ticks_us(), now))
-        return color_tuple
-
-    @micropython.native
     def set_color(self, color) -> None:
         if not isinstance(color, tuple):
-            color = self._convert_color(color)
+            color = utils.convert_color(color)
         
         if color is None:
             return

@@ -4,15 +4,27 @@
     "ssid": "wifi SSID",
     "password": "wifi password",
     "server": "ip or domain of MQTT server",
-    "led_pins": [
-        [0, 1, 2]
-    ],
-    "rotary_encoder_pins": [4, 3],
-    "select_switch_pin": 5,
-    "invert_pwm_duty_cycle": false,
     "config": {
-        "fft_stream_host": null,
-        "fft_stream_port": null
+        "led_pins": [
+            [0, 1, 2]
+        ],
+        "rotary_encoder_pins": [4, 3],
+        "select_switch_pin": 5,
+        "invert_pwm_duty_cycle": false,
+        "fft_streamer": {
+            "host": null,
+            "port": null
+        },
+        "available_colors": [
+            "#000000",
+            "#ffffff",
+            "#ff0000",
+            "#00ff00",
+            "#0000ff",
+            "#ffff00",
+            "#00ffff",
+            "#ff00ff"
+        ]
     },
     "features": [
         {

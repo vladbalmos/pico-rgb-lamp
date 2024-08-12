@@ -111,7 +111,8 @@ async def stop_task(task):
 
 async def render(queue, config, device):
     try:
-        visualizer_config = json.loads(device.get("audio_visualizer_config"))
+        # visualizer_config = json.loads(device.get("audio_visualizer_config"))
+        visualizer_config = device.get("audio_visualizer_config")
     except ValueError:
         visualizer_config = {}
     

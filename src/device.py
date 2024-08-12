@@ -22,13 +22,20 @@ def persist_state(_ = None):
     except Exception as e:
         print("Failed to persist state", e)
         
+def flash_color(color, framerate = 2):
+    _state["lamp"].flash_color(color, framerate)
+    
+def demo_animation(animation_name, color):
+    _state["lamp"].set_animation(animation_name, duration_s = 1.0, color = color)
+        
+        
 def update_features(data):
     if _state["lamp"] is None:
         return
 
-    start_ms = time.ticks_ms()
+    # start_ms = time.ticks_ms()
     result = _state["lamp"].change_state(data["featureId"], data["state"])
-    print(time.ticks_diff(time.ticks_ms(), start_ms), "ms to update features")
+    # print(time.ticks_diff(time.ticks_ms(), start_ms), "ms to update features")
     for (feature_id, value) in result:
         for f in _state["device_state"]["features"]:
             if f["id"] == feature_id:
@@ -37,6 +44,9 @@ def update_features(data):
 
     persist_state()
     return result
+
+def active_feature():
+    return _state["lamp"].current_state()
 
 def config(key, value = None):
     if type(key) is dict:
@@ -64,6 +74,12 @@ def get(feature_id):
     for f in _state["device_state"]["features"]:
         if f["id"] == feature_id:
             return f["value"] if "value" in f else f["schema"]["default"]
+    return None
+
+def get_schema(feature_id):
+    for f in _state["device_state"]["features"]:
+        if f["id"] == feature_id:
+            return f["schema"]
     return None
 
 def process_amplitudes(amplitudes, fft_samplerate, config):

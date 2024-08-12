@@ -1,5 +1,5 @@
 from collections import deque
-import animation_utils as utils
+import utils
 from machine import Timer
 import random
 
@@ -13,6 +13,7 @@ class Animation:
         self._duration_s = duration_s
         self._steps = duration_s * _FRAME_RATE
         self._current_step = 1
+        self._framerate = _FRAME_RATE
     
     def stop(self):
         if self._timer:
@@ -30,7 +31,7 @@ class Animation:
             return
 
         self._timer = Timer(-1)
-        self._timer.init(mode = Timer.PERIODIC, freq = _FRAME_RATE, callback = self._update)
+        self._timer.init(mode = Timer.PERIODIC, freq = self._framerate, callback = self._update)
         
     def _update(self, _):
         # Implement in child class
@@ -80,7 +81,7 @@ class TransitionAnimation(Animation):
         
         
 class RainbowAnimation(Animation):
-    def __init__(self, leds, duration_s = 5):
+    def __init__(self, leds, duration_s = 5, color = None):
         super().__init__(leds, duration_s)
         self._current_color_index = 0
         self._current_animation = None
@@ -129,10 +130,15 @@ class RainbowAnimation(Animation):
         
 class BreatheAnimation(Animation):
 
-    def __init__(self, leds, duration_s = 5):
+    def __init__(self, leds, duration_s = 5, color = None):
         super().__init__(leds, duration_s)
         self._brighter = False
-        self._starting_r, self._starting_g, self._starting_b = self._leds[0].color
+        if color:
+            color = utils.convert_color(color)
+        else:
+            color = self._leds[0].color
+
+        self._starting_r, self._starting_g, self._starting_b = color
         self._min_brightness = 0.05
         
     def _update(self, _):
@@ -166,9 +172,13 @@ class BreatheAnimation(Animation):
 
 class WheelAnimation(Animation):
 
-    def __init__(self, leds, duration_s = 60.0):
+    def __init__(self, leds, duration_s = 60.0, color = None):
         super().__init__(leds, duration_s)
-        self._h, self._s, self._v = utils.rgb_to_hsv(*self._leds[0].color)
+        if color:
+            color = utils.convert_color(color)
+        else:
+            color = self._leds[0].color
+        self._h, self._s, self._v = utils.rgb_to_hsv(*color)
 
     def _update(self, _):
         leds = self._leds
@@ -185,6 +195,25 @@ class WheelAnimation(Animation):
 
         for _led in leds:
             _led.set_color((round(r), round(g), round(b)))
+            
+class FlashColorAnimation(Animation):
+    
+    def __init__(self, leds, framerate = 2, color = '#ffffff'):
+        super().__init__(leds)
+        self._r, self._g, self._b = utils.convert_color(color)
+        self._framerate = framerate
+        self._state = False
+        
+    def _update(self, _):
+        if self._state:
+            color = (0, 0, 0)
+            self._state = False
+        else:
+            color = (self._r, self._g, self._b)
+            self._state = True
+
+        for _led in self._leds:
+            _led.set_color((color))
             
 class AudioVisualizer(Animation):
     
@@ -280,11 +309,14 @@ class AudioVisualizer(Animation):
             _led.set_color(color)
 
     
-def factory(animation, leds):
+def factory(animation, leds, **kwargs):
     if animation == "rainbow":
-        return RainbowAnimation(leds)
+        return RainbowAnimation(leds, **kwargs)
     if animation == "breathe":
-        return BreatheAnimation(leds)
+        return BreatheAnimation(leds, **kwargs)
     if animation == "wheel":
-        return WheelAnimation(leds)
+        return WheelAnimation(leds, **kwargs)
+    if animation == "flash_color":
+        return FlashColorAnimation(leds, **kwargs)
+
     return NoAnimation(leds)

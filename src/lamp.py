@@ -6,6 +6,15 @@ class Lamp:
     def __init__(self, leds) -> None:
         self._leds = leds
         self._animation = None
+        self._current_state = None
+        
+    def flash_color(self, color, framerate = 2):
+        if self._animation:
+            self._animation.stop()
+            self._animation = None
+            
+        self.set_animation('flash_color', color = color, framerate = framerate)
+
         
     @micropython.native
     def change_state(self, feature_id, value):
@@ -14,6 +23,8 @@ class Lamp:
             self._animation = None
             
         if feature_id == "change_global_color":
+            self._current_state = (feature_id, value)
+
             self.change_all_colors(value)
             result = [(feature_id, value)]
             for i in range(len(self._leds)):
@@ -32,22 +43,29 @@ class Lamp:
             return [(feature_id, value), ('animation', 'off'), ('enable_audio_visualizer', 0)]
         
         if feature_id == "animation":
+            self._current_state = (feature_id, value)
+
             self.set_animation(value)
             return [(feature_id, value), ('enable_audio_visualizer', 0)]
         
         if feature_id == "enable_audio_visualizer":
+            self._current_state = (feature_id, value)
+
             self.set_animation('off')
             return [(feature_id, value), ('animation', "off")]
             
         
         return [(feature_id, value)]
     
+    def current_state(self):
+        return self._current_state
+    
     @micropython.native
-    def set_animation(self, name):
+    def set_animation(self, name, **kwargs):
         if self._animation:
             self._animation.stop()
             
-        self._animation = animation.factory(name, self._leds)
+        self._animation = animation.factory(name, self._leds, **kwargs)
         self._animation.start()
         
     @micropython.native

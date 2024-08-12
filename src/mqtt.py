@@ -19,7 +19,6 @@ _state = {
 }
 
 async def register_device():
-    global _state["client"]
     payload = json.dumps({
         "request": "registration",
         "requestTopic": _state["device_config"]["topics"]["subscription"]["device"],
@@ -40,11 +39,9 @@ def broadcast(feature_id, state):
         'featureId': feature_id,
         'state': state
     }))
-    print("Broadcasting", feature_id, state)
+    # print("Broadcasting", feature_id, state)
 
 async def mqtt_up(client):
-    global _state["initial_connection_establed"], _state["client"]
-    
     while True:
         print("Waiting for connection...")
         await client.up.wait()
@@ -94,7 +91,7 @@ async def process_broadcast_queue():
             continue    
 
         await _state["client"].publish(_state["device_config"]["topics"]["publish"]["device"], msg, qos = 0)
-        print("Broadcasted", msg)
+        # print("Broadcasted", msg)
         
 def disconnect():
     if _state["client"]:

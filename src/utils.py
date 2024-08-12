@@ -7,6 +7,9 @@ if "micropython" not in globals():
             return func
         
     micropython = Micropython()
+    
+def rgb_to_hex(color):
+    return "#{:02x}{:02x}{:02x}".format(*color)
 
 @micropython.native
 def rgb_to_hsv(r, g, b):
@@ -105,3 +108,51 @@ def pulse_rgb(_, amplitudes):
     blue = loudness_to_brightness(sum(amplitudes[7:]) / 3)
     
     return (red, green, blue)
+
+@micropython.native
+def convert_color(color, red_max = 255, green_max = 255, blue_max = 255, red_green_scaling_factor = 1, red_blue_scaling_factor = 1):
+    # Convert color to tuple(red, green, blue)
+    # where each color channel is between 0, 255
+    color_tuple = None
+    
+    if not color_tuple and isinstance(color, str) and color.startswith("#"):
+        color = color[1:]
+        if len(color) == 6:
+            try:
+                color_tuple = tuple(int(color[i:i+2], 16) for i in (0, 2, 4))
+            except ValueError:
+                pass
+    
+    if not color_tuple and isinstance(color, int):
+        red = (color >> 16) & 0xFF
+        green = (color >> 8) & 0xFF
+        blue = color & 0xFF
+        color_tuple = (red, green, blue)
+        
+    if color_tuple:
+        # Adjust the color values and create a new tuple
+        adjusted_red = color_tuple[0]
+        if adjusted_red > 0:
+            adjusted_green = int(color_tuple[1] / red_green_scaling_factor)
+            adjusted_blue = int(color_tuple[2] / red_blue_scaling_factor)
+        else:
+            adjusted_green = color_tuple[1]
+            adjusted_blue = color_tuple[2]
+        color_tuple = (min(red_max, adjusted_red), min(green_max, adjusted_green), min(blue_max, adjusted_blue))
+    return color_tuple
+    
+def color_index_of(colors_list, color):
+    for i, c in enumerate(colors_list):
+        if convert_color(c) == convert_color(color):
+            return i
+    return None
+
+def change_brightness(color, brightness):
+    color = convert_color(color)
+    h, s, v = rgb_to_hsv(*color)
+    print(color, h, s, v)
+    
+    v = brightness / 255.0 * 100
+
+    r, g, b = hsv_to_rgb(h, s, v)
+    return (r, g, b)

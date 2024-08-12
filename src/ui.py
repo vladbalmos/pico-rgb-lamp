@@ -26,6 +26,16 @@ _menu_states = {
             "change_state": "idle"
         },
         KEY_DOWN: {
+            "change_state": "submenu"
+        }
+    },
+    "submenu": {
+        SELECT_NEXT: "update_state",
+        SELECT_PREV: "update_state",
+        KEY_DOWN_LP: {
+            "change_state": "idle"
+        },
+        KEY_DOWN: {
             "change_state": "select"
         }
     },
@@ -58,17 +68,16 @@ def update_ui_state(event, timestamp, value):
         "current_state": _state["ui_current_state"]
     });
 
-def change_ui_state(next_state, event, timestamp, value):
+def change_ui_state(next_state, event, timestamp, value = None):
     if not next_state in _menu_states:
         return
     
     _state["queue"].put_nowait({
         "ui_event": True,
         "action": "change_state",
-        "next_state": next_state,
+        "value": next_state,
         "event": event,
         "timestamp": timestamp,
-        "value": value,
         "current_state": _state["ui_current_state"]
     });
     _state["ui_current_state"] = next_state
@@ -142,12 +151,13 @@ async def switch_check():
             _state["last_switch_state"] = switch_state
         await asyncio.sleep_ms(50)
         
-def set_encoder_range(min_val, max_val):
-    _state["encoder"].set(min_val = min_val, max_val = max_val)
+def set_encoder_range(min_val = 0, max_val = 255, incr = 10, value = 255):
+    _state["encoder"].set(min_val = min_val, max_val = max_val, value = value, incr = incr)
 
 def init(queue, config):
     encoder_pin_clk, encoder_pin_dt = config["rotary_encoder_pins"]
-    encoder = RotaryIRQ(encoder_pin_clk, encoder_pin_dt, min_val = 0, max_val = RotaryIRQ.RANGE_UNBOUNDED, pull_up = True)
+    encoder = RotaryIRQ(encoder_pin_clk, encoder_pin_dt, min_val = 0, max_val = 255, pull_up = True, range_mode = RotaryIRQ.RANGE_BOUNDED, incr = 10)
+    encoder.set(value = 255)
     
     encoder.add_listener(on_encoder_change)
     _state["encoder"] = encoder
