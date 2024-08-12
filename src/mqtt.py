@@ -29,7 +29,7 @@ async def register_device():
             "features": _state["device_config"]["features"]
         }
     })
-    print("Registering device", _state["device_config"]["topics"]["publish"]["manager"], payload)
+    print("Registering device", _state["device_config"]["id"], _state["device_config"]["topics"]["publish"]["manager"])
     await _state["client"].publish(_state["device_config"]["topics"]["publish"]["manager"], payload, qos = 0)
     print("Registered device")
     
@@ -56,7 +56,7 @@ async def mqtt_up(client):
             
         for k,v in _state["device_config"]["topics"]["subscription"].items():
             print(f"Subscribing to {v}")
-            await client.subscribe(v, 1)
+            await client.subscribe(v, 0)
             
         await register_device()
 

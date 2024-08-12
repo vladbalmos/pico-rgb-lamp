@@ -17,7 +17,8 @@ def get_id():
 def persist_state(_ = None):
     try:
         with open("state.json", "w") as state_file:
-            state_file.write(json.dumps(_state["device_state"]))
+            data = json.dumps(_state["device_state"])
+            state_file.write(data)
             print("State persisted")
     except Exception as e:
         print("Failed to persist state", e)
@@ -46,7 +47,9 @@ def update_features(data):
     return result
 
 def active_feature():
-    return _state["lamp"].current_state()
+    s =  _state["lamp"].current_state()
+    print(s)
+    return s
 
 def config(key, value = None):
     if type(key) is dict:
@@ -93,7 +96,7 @@ def init(lamp, default_state):
         with open("state.json", "r") as state_file:
             contents = state_file.read()
             _state["device_state"] = json.loads(contents)
-            print("Loaded previous state", _state["device_state"])
+            print("Loaded previous state")
     except Exception as e:
         print("No last state found. Using default config. Error: ", e)
         

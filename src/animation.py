@@ -172,7 +172,7 @@ class BreatheAnimation(Animation):
 
 class WheelAnimation(Animation):
 
-    def __init__(self, leds, duration_s = 60.0, color = None):
+    def __init__(self, leds, duration_s = 60, color = None):
         super().__init__(leds, duration_s)
         if color:
             color = utils.convert_color(color)
@@ -189,7 +189,7 @@ class WheelAnimation(Animation):
         v = self._v
         
         if self._h > 360:
-            h = 0
+            self._h = 0
             
         r, g, b = utils.hsv_to_rgb(self._h, s, v)
 

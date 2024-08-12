@@ -1,6 +1,14 @@
 import gc
 import animation
 
+if "micropython" not in globals():
+    class Micropython:
+        
+        def native(self, func):
+            return func
+        
+    micropython = Micropython()
+
 class Lamp:
 
     def __init__(self, leds) -> None:
@@ -27,29 +35,21 @@ class Lamp:
 
             self.change_all_colors(value)
             result = [(feature_id, value)]
-            for i in range(len(self._leds)):
-                result.append(('change_led' + str(i) + '_color', value))
             
             result.append(('animation', 'off'))
             result.append(('enable_audio_visualizer', 0))
             return result
         
-        if feature_id.startswith("change_led") and feature_id.endswith("_color"):
-            try:
-                led_idx = int(feature_id[10])
-            except ValueError:
-                return
-            self.change_led_color(led_idx, value)
-            return [(feature_id, value), ('animation', 'off'), ('enable_audio_visualizer', 0)]
-        
         if feature_id == "animation":
-            self._current_state = (feature_id, value)
+            if value != "off":
+                self._current_state = (feature_id, value)
 
             self.set_animation(value)
             return [(feature_id, value), ('enable_audio_visualizer', 0)]
         
         if feature_id == "enable_audio_visualizer":
-            self._current_state = (feature_id, value)
+            if value:
+                self._current_state = (feature_id, value)
 
             self.set_animation('off')
             return [(feature_id, value), ('animation', "off")]
@@ -101,15 +101,11 @@ class Lamp:
 
             if feature["id"] == "change_global_color":
                 self.change_all_colors(value)
+                self._current_state = ("change_global_color", value)    
                 continue
             
-            if feature["id"].startswith("change_led") and feature["id"].endswith("_color"):
-                try:
-                    led_idx = int(feature["id"][10])
-                except ValueError:
-                    return
-                self.change_led_color(led_idx, value)
-
             if feature["id"] == "animation":
                 self.set_animation(value)
+                if value != "off":
+                    self._current_state = ("animation", value)
                 continue

@@ -105,6 +105,7 @@ def handle_ui_event(msg, device):
     try:
         active_feature_id, active_value = device.active_feature()
     except Exception as e:
+        print(e)
         return
     
     # Handle change states
@@ -112,7 +113,6 @@ def handle_ui_event(msg, device):
 
         if event_value == 'idle':
             # State changed to "idle"
-            reset_ui_menu_state()
 
             if event == ui.KEY_DOWN_LP:
                 # menu section was cancelled, go back to last active feature
@@ -122,6 +122,7 @@ def handle_ui_event(msg, device):
                     
                     if feature_id == "enable_audio_visualizer" and state == 1:
                         enable_audio_visualizer(device.config("fft_streamer"))
+                reset_ui_menu_state()
 
             # reset encoder
             ui.set_encoder_range()
@@ -168,7 +169,10 @@ def handle_ui_event(msg, device):
                 
                 animation_index = None
                 if active_feature_id == "animation":
-                    animation_index = animations.index(active_value)
+                    try:
+                        animation_index = animations.index(active_value)
+                    except ValueError:
+                        animation_index = 0
                 else:
                     animation_index = 0
                     
@@ -252,8 +256,8 @@ async def handle_messages(msg_queue, device):
     global audio_visualizer_task
     while True:
         msg = await msg_queue.get()
-        # print("Received message")
-        # print(msg)
+        print("Received message")
+        print(msg)
         
         if ui_message(msg):
             handle_ui_event(msg, device)
@@ -316,10 +320,11 @@ def enable_audio_visualizer(config):
     audio_visualizer_task = asyncio.create_task(audio_visualizer.run(fft_stream_host, fft_stream_port, device))
 
 async def main():
-    # TODO: fix wheel animation
-    # TODO: state not preserved when using UI
     # TODO: disable remote feature activation if menu is active
     # TODO: flash while connecting to network with timeout and go back to static color
+    # TODO: convert audio visualizer config to json instead of string
+    # TODO: restore audio vizualizer if it was enabled before reboot
+    # TODO: cancel menu if no selection in 60 seconds
     status_led = Pin('LED', Pin.OUT)
     LEDs = []
     
