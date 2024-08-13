@@ -7,3 +7,5 @@ device.json
 state.json
 .vscode
 *.FCBak
+rgb-lamp-backups
+fp-info-cache
