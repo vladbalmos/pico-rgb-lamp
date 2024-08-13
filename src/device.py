@@ -1,5 +1,5 @@
-import time
 import json
+from utils import log
 
 _state = {
     "lamp": None,
@@ -19,9 +19,9 @@ def persist_state(_ = None):
         with open("state.json", "w") as state_file:
             data = json.dumps(_state["device_state"])
             state_file.write(data)
-            print("State persisted")
+            log("State persisted")
     except Exception as e:
-        print("Failed to persist state", e)
+        log("Failed to persist state", e)
         
 def flash_color(color, framerate = 2):
     _state["lamp"].flash_color(color, framerate)
@@ -34,9 +34,7 @@ def update_features(data):
     if _state["lamp"] is None:
         return
 
-    # start_ms = time.ticks_ms()
     result = _state["lamp"].change_state(data["featureId"], data["state"])
-    # print(time.ticks_diff(time.ticks_ms(), start_ms), "ms to update features")
     for (feature_id, value) in result:
         for f in _state["device_state"]["features"]:
             if f["id"] == feature_id:
@@ -47,9 +45,7 @@ def update_features(data):
     return result
 
 def active_feature():
-    s =  _state["lamp"].current_state()
-    print(s)
-    return s
+    return _state["lamp"].current_state()
 
 def config(key, value = None):
     if type(key) is dict:
@@ -96,9 +92,9 @@ def init(lamp, default_state):
         with open("state.json", "r") as state_file:
             contents = state_file.read()
             _state["device_state"] = json.loads(contents)
-            print("Loaded previous state")
+            log("Loaded previous state")
     except Exception as e:
-        print("No last state found. Using default config. Error: ", e)
+        log("No last state found. Using default config. Error: ", e)
         
     _state["lamp"].restore_state(_state["device_state"]["features"])
     return _state["device_state"]

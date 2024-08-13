@@ -1,5 +1,7 @@
 import math
 
+DEBUG = True
+
 if "micropython" not in globals():
     class Micropython:
         
@@ -150,9 +152,13 @@ def color_index_of(colors_list, color):
 def change_brightness(color, brightness):
     color = convert_color(color)
     h, s, v = rgb_to_hsv(*color)
-    print(color, h, s, v)
     
     v = brightness / 255.0 * 100
 
     r, g, b = hsv_to_rgb(h, s, v)
     return (r, g, b)
+
+def log(*args):
+    if not DEBUG:
+        return
+    print(*args)

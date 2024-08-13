@@ -3,7 +3,7 @@ import sys
 import time
 import json
 import uasyncio as asyncio
-from machine import Pin
+from machine import Pin, Timer
 from elastic_queue import Queue
 from led import LED
 from lamp import Lamp
@@ -11,6 +11,7 @@ import audio_visualizer
 import device
 import mqtt
 import utils
+from utils import log
 import ui    
 
 _TIMEOUT_MS = const(500)
@@ -25,7 +26,28 @@ ui_menu_state = {
     "last_active_feature": None,
     "selected_menu_item": None,
     "selected_submenu_item": None,
+    "cancel_menu_timer": None,
+    "state_locked": False
 }
+
+def state_lock():
+    ui_menu_state["state_locked"] = True
+
+def state_unlock():
+    ui_menu_state["state_locked"] = False
+    
+def cancel_menu(_):
+    ui.change_ui_state("idle", ui.TIMEOUT, time.ticks_ms())
+
+def enable_menu_timeout():
+    cancel_menu_timeout()
+    ui_menu_state["cancel_menu_timer"] = Timer(-1) # type: ignore
+    ui_menu_state["cancel_menu_timer"].init(mode = Timer.ONE_SHOT, period = 60 * 1000, callback = cancel_menu)
+
+def cancel_menu_timeout():
+    if ui_menu_state["cancel_menu_timer"] is not None:
+        ui_menu_state["cancel_menu_timer"].deinit()
+        ui_menu_state["cancel_menu_timer"] = None
 
 def broadcast_updates(updates):
     for (feature_id, new_value) in updates:
@@ -93,7 +115,7 @@ def ui_message(msg):
         
     return True
 
-def handle_ui_event(msg, device):
+async def handle_ui_event(msg, device):
     '''
     Handle UI events and change state accordingly
     '''
@@ -105,16 +127,18 @@ def handle_ui_event(msg, device):
     try:
         active_feature_id, active_value = device.active_feature()
     except Exception as e:
-        print(e)
+        log(e)
         return
     
     # Handle change states
     if action == 'change_state':
 
         if event_value == 'idle':
+            state_unlock()
             # State changed to "idle"
+            cancel_menu_timeout()
 
-            if event == ui.KEY_DOWN_LP:
+            if event == ui.KEY_DOWN_LP or event == ui.TIMEOUT:
                 # menu section was cancelled, go back to last active feature
                 if ui_menu_state["last_active_feature"] is not None:
                     feature_id, state = ui_menu_state["last_active_feature"] # type: ignore
@@ -129,7 +153,9 @@ def handle_ui_event(msg, device):
             return
         
         if event_value == "menu":
+            state_lock()
             # Entered main menu
+            enable_menu_timeout()
             ui_menu_state["last_active_feature"] = (active_feature_id, active_value) # type: ignore
             disable_audio_visualizer()
 
@@ -149,6 +175,7 @@ def handle_ui_event(msg, device):
         
         if event_value == "submenu":
             # Entered submenu
+            enable_menu_timeout()
             if ui_menu_state["selected_menu_item"] == UI_MENU_SELECT_COLOR:
                 available_colors = device.config("available_colors")
                 color_index = None
@@ -207,7 +234,7 @@ def handle_ui_event(msg, device):
                 broadcast_updates(result)
             return
         
-        
+    # Handle state updates
     if current_state == 'idle':
         # Handle the "idle" state
         if active_feature_id == 'change_global_color':
@@ -219,6 +246,7 @@ def handle_ui_event(msg, device):
         
         
     if current_state == 'menu':
+        enable_menu_timeout()
         # Handle the "menu" state
         if action == "update" and (event == ui.SELECT_NEXT or event == ui.SELECT_PREV):
             if event_value == UI_MENU_SELECT_COLOR:
@@ -232,6 +260,7 @@ def handle_ui_event(msg, device):
         return
     
     if current_state == 'submenu':
+        enable_menu_timeout()
         if action == "update" and (event == ui.SELECT_NEXT or event == ui.SELECT_PREV):
             if ui_menu_state["selected_menu_item"] == UI_MENU_SELECT_COLOR:
                 try:
@@ -239,7 +268,7 @@ def handle_ui_event(msg, device):
                     device.flash_color(new_color, framerate = 4)
                     ui_menu_state["selected_submenu_item"] = event_value # type: ignore
                 except KeyError as e:
-                    print("Unknown color index", event_value, "Available colors", device.config("available_colors"))
+                    log("Unknown color index", event_value, "Available colors", device.config("available_colors"))
                     
             if ui_menu_state["selected_menu_item"] == UI_MENU_SELECT_ANIMATION:
                 animation_schema = device.get_schema("animation")
@@ -249,38 +278,40 @@ def handle_ui_event(msg, device):
                     device.demo_animation(animation, color = '#00ff00')
                     ui_menu_state["selected_submenu_item"] = event_value # type: ignore
                 except KeyError as e:
-                    print("Unknown animation index", event_value, "Available animations", animations)
+                    log("Unknown animation index", event_value, "Available animations", animations)
             return
 
 async def handle_messages(msg_queue, device):
     global audio_visualizer_task
     while True:
         msg = await msg_queue.get()
-        print("Received message")
-        print(msg)
+        # log("Received message")
+        # log(msg)
         
         if ui_message(msg):
-            handle_ui_event(msg, device)
+            await handle_ui_event(msg, device)
             continue
         
         if valid_feature_state_update_request(msg):
-            updates = device.update_features(msg["payload"])
+            if ui_menu_state["state_locked"]:
+                log("Menu mode, skip message")
+                continue
             
+            updates = device.update_features(msg["payload"])
             disable_audio_visualizer()
 
             for feature_update in updates:
                 feature, value = feature_update
                 
-                if feature != 'enable_audio_visualizer':
-                    continue
-                
-                if value != 1:
-                    continue
-
-                enable_audio_visualizer(device.config("fft_streamer"))
+                if feature == 'enable_audio_visualizer' and value == 1:
+                    enable_audio_visualizer(device.config("fft_streamer"))
+                    
+                if feature == 'audio_visualizer_config':
+                    audio_visualizer_enabled = device.get("enable_audio_visualizer")
+                    if audio_visualizer_enabled == 1:
+                        enable_audio_visualizer(device.config("fft_streamer"))
 
             broadcast_updates(updates)
-
                     
         if lighting_message(msg):
             message = msg['message']
@@ -291,14 +322,14 @@ async def handle_messages(msg_queue, device):
                 if "host" in address and "port" in address:
                     host = address["host"]
                     port = address["port"]
-                    print(f"FFT Stream is at {host}:{port}")
+                    log(f"FFT Stream is at {host}:{port}")
                     device.config({"fft_streamer": {"host": host, "port": port}})
                     continue
         
 async def handle_mqtt_state_changes(mqtt_state_queue):
     while True:
         state = await mqtt_state_queue.get()
-        print("MQTT state", state)
+        log("MQTT state", state)
         
 def disable_audio_visualizer():
     global audio_visualizer_task    
@@ -314,17 +345,12 @@ def enable_audio_visualizer(config):
     fft_stream_port = config.get("port", None)
 
     if type(fft_stream_host) is not str or len(fft_stream_host) == 0 or type(fft_stream_port) is not int or fft_stream_port < 1:
-        print("Invalid FFT Stream configuration")
+        log("Invalid FFT Stream configuration")
         return
     
     audio_visualizer_task = asyncio.create_task(audio_visualizer.run(fft_stream_host, fft_stream_port, device))
 
 async def main():
-    # TODO: disable remote feature activation if menu is active
-    # TODO: flash while connecting to network with timeout and go back to static color
-    # TODO: convert audio visualizer config to json instead of string
-    # TODO: restore audio vizualizer if it was enabled before reboot
-    # TODO: cancel menu if no selection in 60 seconds
     status_led = Pin('LED', Pin.OUT)
     LEDs = []
     
@@ -351,6 +377,9 @@ async def main():
     asyncio.create_task(handle_messages(msg_queue, device))
     asyncio.create_task(handle_mqtt_state_changes(mqtt_state_queue))
     
+    if device.get("enable_audio_visualizer"):
+        enable_audio_visualizer(device.config("fft_streamer"))
+    
     last_gc_ms = time.ticks_ms()
     while True:
         status_led.toggle()
@@ -364,7 +393,7 @@ async def main():
 
         if elapsed_ms > 5000:
             last_gc_ms = now_ms
-            # print("RAM free %d alloc %d. GC Duration %d"  % (gc.mem_free(), gc.mem_alloc(), gc_duration_ms))
+            log("RAM free %d alloc %d. GC Duration %d"  % (gc.mem_free(), gc.mem_alloc(), gc_duration_ms))
         await asyncio.sleep_ms(_TIMEOUT_MS)
 
 def handle_exception(_, context):
@@ -372,6 +401,7 @@ def handle_exception(_, context):
     sys.exit()
 
 if __name__ == '__main__':
+    # utils.DEBUG = False
     loop = asyncio.get_event_loop()
     loop.set_exception_handler(handle_exception)
     asyncio.run(main())

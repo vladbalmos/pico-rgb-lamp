@@ -1,6 +1,6 @@
 import gc
 import time
-import json
+from utils import log
 import struct
 import uasyncio as asyncio
 from elastic_queue import Queue
@@ -111,7 +111,6 @@ async def stop_task(task):
 
 async def render(queue, config, device):
     try:
-        # visualizer_config = json.loads(device.get("audio_visualizer_config"))
         visualizer_config = device.get("audio_visualizer_config")
     except ValueError:
         visualizer_config = {}
@@ -146,18 +145,18 @@ async def run(host, port, device):
                     try:
                         client = await connect(host, port)
                     except Exception as e:
-                        print("Connection error", e)
+                        log("Connection error", e)
                         await asyncio.sleep_ms(1000)
                         continue
 
-                    print("Connected to FFT server")
+                    log("Connected to FFT server")
                     render_task = asyncio.create_task(render(fft_queue, client.config, device))
 
                 try:
                     fft_values = await client.read_fft_data()
                     fft_queue.put_nowait(fft_values)
                 except Exception as e:
-                    print("Read error", e)
+                    log("Read error", e)
                     await disconnect(client, render_task)
                     await asyncio.sleep_ms(1000)
                     continue
@@ -167,8 +166,8 @@ async def run(host, port, device):
             except OSError as e:
                 await disconnect(client, render_task)
                 await asyncio.sleep_ms(1000)
-                print("Caught exception", e)
+                log("Caught exception", e)
 
     except asyncio.CancelledError:
         await disconnect(client, render_task)
-        print("Cancelled")
+        log("Cancelled")

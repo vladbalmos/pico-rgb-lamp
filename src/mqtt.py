@@ -2,6 +2,7 @@ import uasyncio as asyncio
 import json
 from elastic_queue import Queue
 from mqtt_as import MQTTClient, config
+from utils import log
 
 _broadcast_queue = Queue(8)
 
@@ -29,9 +30,9 @@ async def register_device():
             "features": _state["device_config"]["features"]
         }
     })
-    print("Registering device", _state["device_config"]["id"], _state["device_config"]["topics"]["publish"]["manager"])
+    log("Registering device", _state["device_config"]["id"], _state["device_config"]["topics"]["publish"]["manager"])
     await _state["client"].publish(_state["device_config"]["topics"]["publish"]["manager"], payload, qos = 0)
-    print("Registered device")
+    log("Registered device")
     
 def broadcast(feature_id, state):
     _broadcast_queue.put_nowait(json.dumps({
@@ -39,14 +40,14 @@ def broadcast(feature_id, state):
         'featureId': feature_id,
         'state': state
     }))
-    # print("Broadcasting", feature_id, state)
+    # log("Broadcasting", feature_id, state)
 
 async def mqtt_up(client):
     while True:
-        print("Waiting for connection...")
+        log("Waiting for connection...")
         await client.up.wait()
         client.up.clear()
-        print("Connection (re-)established")
+        log("Connection (re-)established")
         _state["client"] = client
         
         _state["mqtt_state_queue"].put_nowait("up")
@@ -55,18 +56,18 @@ async def mqtt_up(client):
             _state["initial_connection_establed"] = True
             
         for k,v in _state["device_config"]["topics"]["subscription"].items():
-            print(f"Subscribing to {v}")
+            log(f"Subscribing to {v}")
             await client.subscribe(v, 0)
             
         await register_device()
 
 async def mqtt_down(client):
     while True:
-        print("Waiting for connection to be down")
+        log("Waiting for connection to be down")
         await client.down.wait()
         client.down.clear()
         _state["mqtt_state_queue"].put_nowait("down")
-        print("Connection is down")
+        log("Connection is down")
 
 async def mqtt_message(client):
     async for item in client.queue:
@@ -82,7 +83,7 @@ async def mqtt_message(client):
                 msg = json.loads(msg)
                 _state["main_msg_queue"].put_nowait(msg)
             except Exception as e:
-                print("Failed to parse json message", e)
+                log("Failed to parse json message", e)
 
 async def process_broadcast_queue():
     while True:
@@ -91,7 +92,7 @@ async def process_broadcast_queue():
             continue    
 
         await _state["client"].publish(_state["device_config"]["topics"]["publish"]["device"], msg, qos = 0)
-        # print("Broadcasted", msg)
+        # log("Broadcasted", msg)
         
 def disconnect():
     if _state["client"]:
@@ -111,7 +112,7 @@ async def init(device_config, main_msg_queue, mqtt_state_queue):
         client = MQTTClient(config)
         _state["connect_task"] = asyncio.create_task(client.connect())
         try:
-            print(f"Connecting to {config['server']}...")
+            log(f"Connecting to {config['server']}...")
             _state["mqtt_state_queue"].put_nowait("connecting")
             await _state["connect_task"]
 
@@ -128,17 +129,17 @@ async def init(device_config, main_msg_queue, mqtt_state_queue):
             # Wait for tasks to start
             await asyncio.sleep_ms(1000)
 
-            print(f"Initial connection status is: {_state["initial_connection_establed"]}")
+            log(f"Initial connection status is: {_state["initial_connection_establed"]}")
             
             if _state["initial_connection_establed"]:
                 asyncio.create_task(process_broadcast_queue())
         except BaseException as e:
             if client:
                 client.close()
-            print("Connection error:", e)
+            log("Connection error:", e)
             await asyncio.sleep_ms(1000)
 
-    print("MQTT initialized")
+    log("MQTT initialized")
 
 
     

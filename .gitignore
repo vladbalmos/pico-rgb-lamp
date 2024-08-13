@@ -6,3 +6,4 @@ src/aio_queue.py
 device.json
 state.json
 .vscode
+*.FCBak

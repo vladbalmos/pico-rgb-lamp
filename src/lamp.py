@@ -1,4 +1,5 @@
 import gc
+import json
 import animation
 
 if "micropython" not in globals():
@@ -53,6 +54,9 @@ class Lamp:
 
             self.set_animation('off')
             return [(feature_id, value), ('animation', "off")]
+        
+        if feature_id == "audio_visualizer_config":
+            return [(feature_id, json.loads(value))]
             
         
         return [(feature_id, value)]
