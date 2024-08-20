@@ -100,7 +100,7 @@ The configuration is provided in JSON format and is used to customize various as
 
 #### 6.5 `fft_streamer`
 - **Type**: Object
-- **Description**: Configuration for the FFT (Fast Fourier Transform) streamer used in the audio visualizer. Not required - the lamp will automatically subscribe to the streamer mqtt channel and autoconfigure, see [python-fft-streamer](https://github.com/vladbalmos/pihub)
+- **Description**: Configuration for the FFT (Fast Fourier Transform) streamer used in the audio visualizer. Not required - the lamp will automatically subscribe to the streamer mqtt channel and autoconfigure, see [python-fft-streamer](https://github.com/vladbalmos/python-fft-streamer)
 
 ##### `host`
 - **Type**: String or null
