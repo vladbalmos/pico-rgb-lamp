@@ -188,7 +188,7 @@ async def handle_ui_event(msg, device):
                     color_index = 0
                 ui.set_encoder_range(min_val = 0, max_val = len(available_colors) - 1, incr = 1, value = color_index)
 
-                device.flash_color(available_colors[color_index], framerate = 4)
+                device.flash_color(available_colors[color_index], framerate = 8)
                 
             if ui_menu_state["selected_menu_item"] == UI_MENU_SELECT_ANIMATION:
                 animation_schema = device.get_schema("animation")
@@ -265,7 +265,7 @@ async def handle_ui_event(msg, device):
             if ui_menu_state["selected_menu_item"] == UI_MENU_SELECT_COLOR:
                 try:
                     new_color = device.config("available_colors")[event_value]
-                    device.flash_color(new_color, framerate = 4)
+                    device.flash_color(new_color, framerate = 8)
                     ui_menu_state["selected_submenu_item"] = event_value # type: ignore
                 except KeyError as e:
                     log("Unknown color index", event_value, "Available colors", device.config("available_colors"))

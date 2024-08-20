@@ -23,7 +23,7 @@ def persist_state(_ = None):
     except Exception as e:
         log("Failed to persist state", e)
         
-def flash_color(color, framerate = 2):
+def flash_color(color, framerate = 4):
     _state["lamp"].flash_color(color, framerate)
     
 def demo_animation(animation_name, color):

@@ -1,6 +1,6 @@
 import math
 
-DEBUG = True
+DEBUG = False
 
 if "micropython" not in globals():
     class Micropython:
@@ -117,6 +117,9 @@ def convert_color(color, red_max = 255, green_max = 255, blue_max = 255, red_gre
     # where each color channel is between 0, 255
     color_tuple = None
     
+    if isinstance(color, tuple) and len(color) == 3:
+        color_tuple = color
+    
     if not color_tuple and isinstance(color, str) and color.startswith("#"):
         color = color[1:]
         if len(color) == 6:
@@ -156,6 +159,13 @@ def change_brightness(color, brightness):
     v = brightness / 255.0 * 100
 
     r, g, b = hsv_to_rgb(h, s, v)
+    return (r, g, b)
+
+def maximize_brightness(color):
+    color = convert_color(color)
+    h, _, __= rgb_to_hsv(*color)
+    
+    r, g, b = hsv_to_rgb(h, 100, 100)
     return (r, g, b)
 
 def log(*args):

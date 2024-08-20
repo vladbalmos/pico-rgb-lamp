@@ -136,7 +136,7 @@ class BreatheAnimation(Animation):
         if color:
             color = utils.convert_color(color)
         else:
-            color = self._leds[0].color
+            color = utils.maximize_brightness(self._leds[0].color)
 
         self._starting_r, self._starting_g, self._starting_b = color
         self._min_brightness = 0.05
@@ -177,7 +177,8 @@ class WheelAnimation(Animation):
         if color:
             color = utils.convert_color(color)
         else:
-            color = self._leds[0].color
+            color = utils.maximize_brightness(self._leds[0].color)
+
         self._h, self._s, self._v = utils.rgb_to_hsv(*color)
 
     def _update(self, _):
@@ -286,7 +287,6 @@ class AudioVisualizer(Animation):
         frames_count = self._state_change_frames_count
         
         current_color = self._color_transformer(self._leds[0].color, amplitudes)
-        # current_color = utils.pulse_rgb(self._leds[0].color, amplitudes)
         
         for i in range(frames_count):
             t = i / (frames_count - 1)

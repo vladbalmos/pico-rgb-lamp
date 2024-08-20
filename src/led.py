@@ -1,16 +1,9 @@
 import utils
 from machine import PWM
 
-_MAX_DUTY_CYCLE = const(65535)
+# _MAX_DUTY_CYCLE = const(65535)
+_MAX_DUTY_CYCLE = const(58981)
 _PWM_FREQ = const(1000)
-
-_RED_MAX = const(255)
-_GREEN_MAX = const(255)
-_BLUE_MAX = const(255)
-
-# When mixing red, down scale green & blue
-_RED_GREEN_SCALING_FACTOR = const(1.7)
-_RED_BLUE_SCALING_FACTOR = const(2)
 
 if "micropython" not in globals():
     class Micropython:

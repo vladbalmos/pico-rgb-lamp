@@ -8,15 +8,14 @@
         "led_pins": [
             [0, 1, 2]
         ],
-        "rotary_encoder_pins": [4, 3],
-        "select_switch_pin": 5,
+        "rotary_encoder_pins": [14, 13],
+        "select_switch_pin": 15,
         "invert_pwm_duty_cycle": false,
         "fft_streamer": {
             "host": null,
             "port": null
         },
         "available_colors": [
-            "#000000",
             "#ffffff",
             "#ff0000",
             "#00ff00",
