@@ -10,6 +10,9 @@ An RGB lamp powered by a Raspberry Pi Pico, offering seamless control via MQTT. 
 
 This project is part of my basic home automation suit and requires the [pihub](https://github.com/vladbalmos/pihub) server for remote control.
 
+#### Demo
+[![Demo](https://img.youtube.com/vi/2PfCFWdMnYo/0.jpg)](https://www.youtube.com/watch?v=2PfCFWdMnYo)
+
 # System requirements
 
 * micropython (RPI_PICO_W-20240602-v1.23.0)
