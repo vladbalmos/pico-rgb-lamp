@@ -12,6 +12,7 @@ This project is part of my basic home automation suit and requires the [pihub](h
 
 #### Demo
 [![Demo](https://img.youtube.com/vi/2PfCFWdMnYo/0.jpg)](https://www.youtube.com/watch?v=2PfCFWdMnYo)
+[View on YouTube](https://www.youtube.com/watch?v=2PfCFWdMnYo)
 
 # System requirements
 
