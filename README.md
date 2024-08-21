@@ -24,7 +24,7 @@ For a complete bill of materials see the [hw/pcb](https://github.com/vladbalmos/
 
 # Install
 
-    git clone [url]
+    git clone https://github.com/vladbalmos/pico-rgb-lamp
     git submodule update --init --recursive
     
 # Building and flashing
